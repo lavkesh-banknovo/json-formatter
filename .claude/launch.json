@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "Python HTTP Server",
+      "runtimeExecutable": "/usr/bin/python3",
+      "runtimeArgs": ["-c", "import http.server, socketserver; httpd = socketserver.TCPServer(('', 8000), http.server.SimpleHTTPRequestHandler); print('Serving on port 8000'); httpd.serve_forever()"],
+      "port": 8000
+    },
+    {
+      "name": "npx http-server",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["http-server", "-p", "8080", "-c-1"],
+      "port": 8080
+    }
+  ]
+}
