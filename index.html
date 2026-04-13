@@ -1,0 +1,1043 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; connect-src blob:;">
+<title>JSON Formatter &amp; Converter</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#f5f6f8;--bg2:#ffffff;--bg3:#e9ecef;--bg4:#f1f3f5;
+  --border:#dce0e5;--border2:#c9cdd3;
+  --text:#1a1d23;--text2:#495057;--text3:#868e96;
+  --accent:#4361ee;--accent-hover:#3a56d4;--accent-light:#eef1ff;--accent-text:#fff;
+  --danger:#e03131;--danger-light:#fff0f0;--success:#2f9e44;--success-light:#ebfbee;
+  --warning:#f08c00;--warning-light:#fff9db;
+  --key:#7c3aed;--str:#16a34a;--num:#2563eb;--bool:#ea580c;--null-color:#868e96;
+  --shadow-sm:0 1px 2px rgba(0,0,0,.05);--shadow:0 2px 8px rgba(0,0,0,.08);--shadow-lg:0 8px 24px rgba(0,0,0,.12);
+  --radius:6px;--radius-lg:10px;
+  --font-mono:'SF Mono','Menlo','Consolas','DejaVu Sans Mono','Liberation Mono',monospace;
+  --font-sans:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+  --header-h:50px;--toolbar-h:46px;
+}
+[data-theme="dark"]{
+  --bg:#111318;--bg2:#1a1d24;--bg3:#22252d;--bg4:#2a2d36;
+  --border:#2e323b;--border2:#3d424d;
+  --text:#d4d7dd;--text2:#9ca0a8;--text3:#6b7080;
+  --accent:#748ffc;--accent-hover:#5c7cfa;--accent-light:#252a3a;--accent-text:#111318;
+  --danger:#ff6b6b;--danger-light:#2d1a1a;--success:#51cf66;--success-light:#1a2d1e;
+  --warning:#ffd43b;--warning-light:#2d2a1a;
+  --key:#b197fc;--str:#69db7c;--num:#74c0fc;--bool:#ffa94d;--null-color:#868e96;
+  --shadow-sm:0 1px 2px rgba(0,0,0,.2);--shadow:0 2px 8px rgba(0,0,0,.3);--shadow-lg:0 8px 24px rgba(0,0,0,.4);
+}
+html,body{height:100%;font-family:var(--font-sans);background:var(--bg);color:var(--text)}
+body{display:flex;flex-direction:column;overflow:hidden}
+::selection{background:var(--accent);color:#fff}
+
+/* ───── Header ───── */
+.header{display:flex;align-items:center;justify-content:space-between;padding:0 20px;height:var(--header-h);background:var(--bg2);border-bottom:1px solid var(--border);flex-shrink:0;gap:12px}
+.header-left{display:flex;align-items:center;gap:10px}
+.logo{display:flex;align-items:center;gap:8px;text-decoration:none;color:var(--text)}
+.logo-icon{width:28px;height:28px;background:var(--accent);border-radius:6px;display:flex;align-items:center;justify-content:center}
+.logo-icon svg{width:16px;height:16px;fill:#fff}
+.logo h1{font-size:16px;font-weight:700;letter-spacing:-.3px;white-space:nowrap}
+.logo span{font-size:16px;font-weight:400;color:var(--text3)}
+.header-right{display:flex;align-items:center;gap:10px}
+.badge{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;font-size:10.5px;font-weight:600;color:var(--success);border:1.5px solid var(--success);border-radius:20px;white-space:nowrap;user-select:none}
+.badge svg{width:12px;height:12px;fill:currentColor;flex-shrink:0}
+.theme-toggle{position:relative;width:40px;height:22px;background:var(--bg3);border:1px solid var(--border);border-radius:11px;cursor:pointer;transition:background .2s;flex-shrink:0}
+.theme-toggle:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.theme-toggle::after{content:'';position:absolute;top:2px;left:2px;width:16px;height:16px;background:var(--accent);border-radius:50%;transition:transform .2s}
+[data-theme="dark"] .theme-toggle::after{transform:translateX(18px)}
+.theme-icons{display:flex;align-items:center;gap:2px;margin-right:2px}
+.theme-icons svg{width:14px;height:14px;fill:var(--text3)}
+
+/* ───── Toolbar ───── */
+.toolbar{display:flex;align-items:center;gap:6px;padding:0 16px;min-height:var(--toolbar-h);background:var(--bg2);border-bottom:1px solid var(--border);flex-shrink:0;flex-wrap:wrap;padding-top:7px;padding-bottom:7px;justify-content:flex-end}
+.toolbar::-webkit-scrollbar{display:none}
+.btn{display:inline-flex;align-items:center;gap:5px;padding:5px 12px;font-size:12.5px;font-weight:500;font-family:var(--font-sans);border:1px solid var(--border);border-radius:var(--radius);background:var(--bg2);color:var(--text);cursor:pointer;transition:all .15s;white-space:nowrap;height:32px}
+.btn:hover{background:var(--bg3);border-color:var(--border2)}
+.btn:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.btn:active{transform:scale(.97)}
+.btn svg{width:14px;height:14px;fill:currentColor;flex-shrink:0}
+.btn-primary{background:var(--accent);color:var(--accent-text);border-color:var(--accent);font-weight:600}
+.btn-primary:hover{background:var(--accent-hover);border-color:var(--accent-hover)}
+.btn-success{color:var(--success);border-color:var(--success)}
+.btn-success:hover{background:var(--success);color:#fff}
+.btn-success:hover svg{fill:#fff}
+.btn-danger{color:var(--danger);border-color:var(--danger)}
+.btn-danger:hover{background:var(--danger);color:#fff}
+.btn-danger:hover svg{fill:#fff}
+.sep{width:1px;height:22px;background:var(--border);flex-shrink:0;margin:0 2px}
+.toolbar select{padding:5px 8px;font-size:12.5px;font-family:var(--font-sans);border:1px solid var(--border);border-radius:var(--radius);background:var(--bg2);color:var(--text);cursor:pointer;height:32px}
+.toolbar select:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.toolbar label{font-size:12px;color:var(--text2);display:flex;align-items:center;gap:4px;white-space:nowrap}
+.shortcut-hint{font-size:10.5px;color:var(--text3);flex-shrink:0}
+
+/* ───── Dropdown ───── */
+.dropdown{position:relative;display:inline-flex}
+.dropdown-menu{position:absolute;top:calc(100% + 4px);left:0;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow-lg);z-index:100;min-width:170px;padding:4px;display:none}
+.dropdown-menu.open{display:block}
+.dropdown-item{display:flex;align-items:center;gap:8px;padding:7px 12px;font-size:12.5px;color:var(--text);border:none;background:none;width:100%;cursor:pointer;border-radius:4px;font-family:var(--font-sans);text-align:left}
+.dropdown-item:hover{background:var(--accent-light);color:var(--accent)}
+.dropdown-item:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.dropdown-item svg{width:14px;height:14px;fill:currentColor;flex-shrink:0}
+
+/* ───── Main panels ───── */
+.main{display:flex;flex:1;overflow:hidden}
+.panel{flex:1;display:flex;flex-direction:column;min-width:0}
+.panel+.panel{border-left:1px solid var(--border)}
+.panel-header{display:flex;align-items:center;justify-content:space-between;padding:0 12px;height:34px;background:var(--bg4);border-bottom:1px solid var(--border);flex-shrink:0}
+.panel-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--text3)}
+.panel-actions{display:flex;align-items:center;gap:6px}
+.panel-info{font-size:10.5px;color:var(--text3);font-family:var(--font-mono)}
+.panel-btn{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border:1px solid transparent;border-radius:4px;background:none;color:var(--text3);cursor:pointer;transition:all .15s}
+.panel-btn:hover{background:var(--bg3);color:var(--text);border-color:var(--border)}
+.panel-btn:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.panel-btn svg{width:14px;height:14px;fill:currentColor}
+
+/* ───── Input area ───── */
+.input-wrap{flex:1;display:flex;overflow:hidden;position:relative}
+.line-numbers{width:44px;flex-shrink:0;padding:10px 6px 10px 0;text-align:right;font-family:var(--font-mono);font-size:12.5px;line-height:1.55;color:var(--text3);background:var(--bg4);border-right:1px solid var(--border);overflow:hidden;user-select:none;white-space:pre}
+.input-wrap textarea{flex:1;padding:10px 12px;font-family:var(--font-mono);font-size:12.5px;line-height:1.55;border:none;background:var(--bg2);color:var(--text);resize:none;outline:none;tab-size:2;white-space:pre;overflow-wrap:normal;overflow-x:auto}
+.input-wrap textarea::placeholder{color:var(--text3)}
+
+/* ───── Drop zone ───── */
+.drop-overlay{position:absolute;inset:0;background:var(--accent-light);border:2px dashed var(--accent);border-radius:8px;display:none;align-items:center;justify-content:center;z-index:10;pointer-events:none}
+.drop-overlay.active{display:flex}
+.drop-overlay span{font-size:14px;font-weight:600;color:var(--accent);padding:20px;text-align:center}
+
+/* ───── Output area ───── */
+.output-wrap{flex:1;overflow:auto;padding:10px 12px;font-family:var(--font-mono);font-size:12.5px;line-height:1.6;background:var(--bg2);white-space:pre-wrap;word-break:break-all}
+.output-wrap:focus-visible{outline:2px solid var(--accent) inset}
+
+/* ───── Output view tabs ───── */
+.view-tabs{display:flex;gap:0;margin-left:8px}
+.view-tab{padding:2px 10px;font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;border:1px solid var(--border);background:var(--bg2);color:var(--text3);cursor:pointer;transition:all .15s;font-family:var(--font-sans)}
+.view-tab:first-child{border-radius:4px 0 0 4px}
+.view-tab:last-child{border-radius:0 4px 4px 0}
+.view-tab+.view-tab{margin-left:-1px}
+.view-tab:hover{color:var(--text)}
+.view-tab.active{background:var(--accent);color:var(--accent-text);border-color:var(--accent);z-index:1;position:relative}
+.view-tab:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+
+/* ───── Error display ───── */
+.error-msg{color:var(--danger);padding:16px;font-family:var(--font-mono);font-size:12.5px;line-height:1.6;white-space:pre-wrap}
+.error-msg .error-title{font-size:13px;font-weight:700;margin-bottom:6px;display:flex;align-items:center;gap:6px}
+.error-msg .error-detail{color:var(--text2);font-weight:400;margin-top:4px;font-size:12px}
+.error-msg .error-line{background:var(--danger-light);border-left:3px solid var(--danger);padding:8px 12px;margin-top:8px;border-radius:0 4px 4px 0;font-size:12px;color:var(--text)}
+
+/* ───── Syntax highlighting ───── */
+.s-key{color:var(--key)}.s-str{color:var(--str)}.s-num{color:var(--num)}.s-bool{color:var(--bool)}.s-null{color:var(--null-color)}
+.s-bracket{color:var(--text)}
+
+/* ───── XML/YAML/CSV highlighting ───── */
+.x-tag{color:var(--danger)}.x-attr{color:var(--bool)}.x-val{color:var(--str)}.x-cdata{color:var(--text2)}
+.y-key{color:var(--key)}.y-str{color:var(--str)}.y-num{color:var(--num)}.y-bool{color:var(--bool)}.y-null{color:var(--null-color)}.y-dash{color:var(--danger)}
+
+/* ───── Collapsible tree ───── */
+.coll{position:relative;display:inline}
+.coll-toggle{display:inline-block;width:16px;text-align:center;cursor:pointer;color:var(--text3);user-select:none;font-size:10px;vertical-align:middle;border:none;background:none;padding:0;font-family:var(--font-mono);line-height:1.6;transition:color .15s}
+.coll-toggle:hover{color:var(--accent)}
+.coll-toggle:focus-visible{outline:2px solid var(--accent);outline-offset:1px;border-radius:2px}
+.coll.collapsed .coll-content{display:none}
+.coll-summary{display:none;color:var(--text3);font-style:italic;font-size:11.5px}
+.coll.collapsed .coll-summary{display:inline}
+
+/* ───── Toast ───── */
+.toast{position:fixed;top:16px;right:16px;padding:10px 18px;border-radius:var(--radius);font-size:13px;font-weight:500;color:#fff;background:var(--success);box-shadow:var(--shadow-lg);opacity:0;transform:translateY(-10px);transition:opacity .25s,transform .25s;pointer-events:none;z-index:1000;display:flex;align-items:center;gap:6px}
+.toast svg{width:14px;height:14px;fill:currentColor;flex-shrink:0}
+.toast.show{opacity:1;transform:translateY(0)}
+
+/* ───── Upload modal ───── */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:200;display:none;align-items:center;justify-content:center}
+.modal-overlay.open{display:flex}
+.modal{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-lg);box-shadow:var(--shadow-lg);padding:28px;width:440px;max-width:90vw}
+.modal h2{font-size:16px;font-weight:700;margin-bottom:4px}
+.modal p{font-size:13px;color:var(--text2);margin-bottom:18px}
+.upload-zone{border:2px dashed var(--border2);border-radius:var(--radius-lg);padding:36px 20px;text-align:center;cursor:pointer;transition:all .2s;background:var(--bg4)}
+.upload-zone:hover,.upload-zone.drag-over{border-color:var(--accent);background:var(--accent-light)}
+.upload-zone svg{width:36px;height:36px;fill:var(--text3);margin-bottom:10px}
+.upload-zone .uz-title{font-size:14px;font-weight:600;color:var(--text);margin-bottom:4px}
+.upload-zone .uz-sub{font-size:12px;color:var(--text3)}
+.upload-zone input{display:none}
+.modal-footer{display:flex;justify-content:flex-end;gap:8px;margin-top:18px}
+
+/* ───── Responsive ───── */
+@media(max-width:700px){
+  .main{flex-direction:column}
+  .panel+.panel{border-left:none;border-top:1px solid var(--border)}
+  .badge{display:none}
+  .shortcut-hint{display:none}
+}
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="header">
+  <div class="header-left">
+    <div class="logo">
+      <div class="logo-icon"><svg viewBox="0 0 16 16"><path d="M4 1.5A1.5 1.5 0 0 0 2.5 3v10A1.5 1.5 0 0 0 4 14.5h8a1.5 1.5 0 0 0 1.5-1.5V5.621a1.5 1.5 0 0 0-.44-1.06L10.44 1.94A1.5 1.5 0 0 0 9.378 1.5H4zM5 7h6v1.2H5V7zm0 2.5h4v1.2H5V9.5z"/></svg></div>
+      <h1>JSON Formatter <span>&amp; Converter</span></h1>
+    </div>
+  </div>
+  <div class="header-right">
+    <span class="badge">
+      <svg viewBox="0 0 16 16"><path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm3.7 5.7-4 4a1 1 0 0 1-1.4 0l-2-2a1 1 0 1 1 1.4-1.4L7 8.58l3.3-3.3a1 1 0 0 1 1.4 1.42z"/></svg>
+      100% local &mdash; your data never leaves this browser
+    </span>
+    <div class="theme-icons">
+      <svg viewBox="0 0 16 16"><path d="M8 1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-1 0v-1A.5.5 0 0 1 8 1zm0 11a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-1 0v-1A.5.5 0 0 1 8 12zm7-4a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1 0-1h1a.5.5 0 0 1 .5.5zM3 8a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1 0-1h1A.5.5 0 0 1 3 8zm.354-4.646a.5.5 0 0 1 .707 0l.708.708a.5.5 0 1 1-.708.707l-.707-.708a.5.5 0 0 1 0-.707zm9.292 9.292a.5.5 0 0 1 .707 0l.708.708a.5.5 0 0 1-.708.707l-.707-.708a.5.5 0 0 1 0-.707zM8 4a4 4 0 1 0 0 8 4 4 0 0 0 0-8z"/></svg>
+    </div>
+    <button class="theme-toggle" id="themeToggle" role="switch" aria-checked="false" aria-label="Toggle dark mode" title="Toggle dark mode"></button>
+  </div>
+</div>
+
+<!-- Toolbar -->
+<div class="toolbar" role="toolbar" aria-label="Formatting tools">
+  <button class="btn btn-primary" id="btnFormat" title="Format & Beautify JSON">
+    <svg viewBox="0 0 16 16"><path d="M2 3h12v1.5H2zm0 4h8v1.5H2zm0 4h10v1.5H2z"/></svg>
+    Format
+  </button>
+  <button class="btn" id="btnMinify" title="Minify / Compact JSON">
+    <svg viewBox="0 0 16 16"><path d="M2 7.25h12v1.5H2z"/></svg>
+    Minify
+  </button>
+  <button class="btn" id="btnValidate" title="Validate JSON syntax">
+    <svg viewBox="0 0 16 16"><path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.75.75 0 0 1 1.06-1.06L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0z"/></svg>
+    Validate
+  </button>
+  <div class="sep"></div>
+  <label>
+    Indent:
+    <select id="indentSelect">
+      <option value="2" selected>2 spaces</option>
+      <option value="3">3 spaces</option>
+      <option value="4">4 spaces</option>
+      <option value="tab">Tab</option>
+    </select>
+  </label>
+  <div class="sep"></div>
+
+  <!-- Convert dropdown -->
+  <div class="dropdown" id="convertDropdown">
+    <button class="btn" id="btnConvert" title="Convert JSON to other formats" aria-haspopup="true" aria-expanded="false">
+      <svg viewBox="0 0 16 16"><path d="M1 4.5A.5.5 0 0 1 1.5 4h2.768a.5.5 0 0 1 .354.146l1.06 1.06a.5.5 0 0 0 .354.147H14.5a.5.5 0 0 1 .5.5v6.5a.5.5 0 0 1-.5.5h-13a.5.5 0 0 1-.5-.5v-8z"/></svg>
+      Convert
+      <svg viewBox="0 0 16 16" style="width:10px;height:10px;margin-left:-2px"><path d="M4 6l4 4 4-4z"/></svg>
+    </button>
+    <div class="dropdown-menu" id="convertMenu" role="menu">
+      <button class="dropdown-item" role="menuitem" data-format="xml"><svg viewBox="0 0 16 16"><path d="M2.5 2A1.5 1.5 0 0 0 1 3.5v9A1.5 1.5 0 0 0 2.5 14h11a1.5 1.5 0 0 0 1.5-1.5v-9A1.5 1.5 0 0 0 13.5 2h-11zM5 5.3l-2 2.2 2 2.2-.9.8L1.5 7.5 4.1 4.5 5 5.3zm6 0l.9-.8 2.6 3-2.6 3-.9-.8 2-2.2-2-2.2zM8.3 4l1 .3L7.7 11l-1-.3L8.3 4z"/></svg>JSON to XML</button>
+      <button class="dropdown-item" role="menuitem" data-format="yaml"><svg viewBox="0 0 16 16"><path d="M2 3h12v1.2H2zm0 3h8v1.2H2zm0 3h10v1.2H2zm0 3h6v1.2H2z"/></svg>JSON to YAML</button>
+      <button class="dropdown-item" role="menuitem" data-format="csv"><svg viewBox="0 0 16 16"><path d="M2.5 2A1.5 1.5 0 0 0 1 3.5v9A1.5 1.5 0 0 0 2.5 14h11a1.5 1.5 0 0 0 1.5-1.5v-9A1.5 1.5 0 0 0 13.5 2h-11zM2 5h12v1H2V5zm0 3h5v1H2V8zm0 3h5v1H2v-1zm7-3h5v1H9V8zm0 3h5v1H9v-1z"/></svg>JSON to CSV</button>
+      <button class="dropdown-item" role="menuitem" data-format="tsv"><svg viewBox="0 0 16 16"><path d="M2.5 2A1.5 1.5 0 0 0 1 3.5v9A1.5 1.5 0 0 0 2.5 14h11a1.5 1.5 0 0 0 1.5-1.5v-9A1.5 1.5 0 0 0 13.5 2h-11zM2 5h12v1H2V5zm0 3h5v1H2V8zm0 3h5v1H2v-1zm7-3h5v1H9V8zm0 3h5v1H9v-1z"/></svg>JSON to TSV</button>
+    </div>
+  </div>
+
+  <!-- Download dropdown -->
+  <div class="dropdown" id="downloadDropdown">
+    <button class="btn btn-success" id="btnDownload" title="Download output" aria-haspopup="true" aria-expanded="false">
+      <svg viewBox="0 0 16 16"><path d="M8 1a.5.5 0 0 1 .5.5v8.793l2.146-2.147a.5.5 0 0 1 .708.708l-3 3a.5.5 0 0 1-.708 0l-3-3a.5.5 0 1 1 .708-.708L7.5 10.293V1.5A.5.5 0 0 1 8 1zM2 13.5a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 0 1h-11a.5.5 0 0 1-.5-.5z"/></svg>
+      Download
+      <svg viewBox="0 0 16 16" style="width:10px;height:10px;margin-left:-2px"><path d="M4 6l4 4 4-4z"/></svg>
+    </button>
+    <div class="dropdown-menu" id="downloadMenu" role="menu">
+      <button class="dropdown-item" role="menuitem" data-dl="json"><svg viewBox="0 0 16 16"><path d="M4 1.5A1.5 1.5 0 0 0 2.5 3v10A1.5 1.5 0 0 0 4 14.5h8a1.5 1.5 0 0 0 1.5-1.5V5.621a1.5 1.5 0 0 0-.44-1.06L10.44 1.94A1.5 1.5 0 0 0 9.378 1.5H4z"/></svg>Download as .json</button>
+      <button class="dropdown-item" role="menuitem" data-dl="xml"><svg viewBox="0 0 16 16"><path d="M4 1.5A1.5 1.5 0 0 0 2.5 3v10A1.5 1.5 0 0 0 4 14.5h8a1.5 1.5 0 0 0 1.5-1.5V5.621a1.5 1.5 0 0 0-.44-1.06L10.44 1.94A1.5 1.5 0 0 0 9.378 1.5H4z"/></svg>Download as .xml</button>
+      <button class="dropdown-item" role="menuitem" data-dl="yaml"><svg viewBox="0 0 16 16"><path d="M4 1.5A1.5 1.5 0 0 0 2.5 3v10A1.5 1.5 0 0 0 4 14.5h8a1.5 1.5 0 0 0 1.5-1.5V5.621a1.5 1.5 0 0 0-.44-1.06L10.44 1.94A1.5 1.5 0 0 0 9.378 1.5H4z"/></svg>Download as .yaml</button>
+      <button class="dropdown-item" role="menuitem" data-dl="csv"><svg viewBox="0 0 16 16"><path d="M4 1.5A1.5 1.5 0 0 0 2.5 3v10A1.5 1.5 0 0 0 4 14.5h8a1.5 1.5 0 0 0 1.5-1.5V5.621a1.5 1.5 0 0 0-.44-1.06L10.44 1.94A1.5 1.5 0 0 0 9.378 1.5H4z"/></svg>Download as .csv</button>
+      <button class="dropdown-item" role="menuitem" data-dl="tsv"><svg viewBox="0 0 16 16"><path d="M4 1.5A1.5 1.5 0 0 0 2.5 3v10A1.5 1.5 0 0 0 4 14.5h8a1.5 1.5 0 0 0 1.5-1.5V5.621a1.5 1.5 0 0 0-.44-1.06L10.44 1.94A1.5 1.5 0 0 0 9.378 1.5H4z"/></svg>Download as .tsv</button>
+    </div>
+  </div>
+  <div class="sep"></div>
+  <button class="btn" id="btnUpload" title="Upload a JSON file">
+    <svg viewBox="0 0 16 16"><path d="M8 1a.5.5 0 0 1 .5.5v8.793l2.146-2.147a.5.5 0 0 1 .708.708l-3 3a.5.5 0 0 1-.708 0l-3-3a.5.5 0 1 1 .708-.708L7.5 10.293V1.5A.5.5 0 0 1 8 1zM2 13.5a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 0 1h-11a.5.5 0 0 1-.5-.5z" transform="rotate(180 8 8)"/></svg>
+    Upload
+  </button>
+  <button class="btn" id="btnToggleAll" title="Expand / Collapse all">
+    <svg viewBox="0 0 16 16"><path d="M2.5 4.5l3.5 3.5-3.5 3.5m5.5-8h5v1.5h-5zm0 3.5h5v1.5h-5zm0 3.5h4v1.5H8z"/></svg>
+    Toggle
+  </button>
+  <button class="btn btn-danger" id="btnClear" title="Clear everything">
+    <svg viewBox="0 0 16 16"><path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0V6z"/><path d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1 0-2H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1zM4.118 4L4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4H4.118z"/></svg>
+    Clear
+  </button>
+  <span class="shortcut-hint" id="shortcutHint"></span>
+</div>
+
+<!-- Main Panels -->
+<div class="main">
+  <!-- Input Panel -->
+  <div class="panel" id="inputPanel">
+    <div class="panel-header">
+      <div style="display:flex;align-items:center;gap:8px">
+        <span class="panel-title">Input</span>
+      </div>
+      <div class="panel-actions">
+        <span class="panel-info" id="inputStats">0 chars &middot; 0 bytes</span>
+        <button class="panel-btn" id="btnSample" title="Load sample JSON">
+          <svg viewBox="0 0 16 16"><path d="M8 2a.5.5 0 0 1 .5.5V7h4.5a.5.5 0 0 1 0 1H8.5v4.5a.5.5 0 0 1-1 0V8H3a.5.5 0 0 1 0-1h4.5V2.5A.5.5 0 0 1 8 2z"/></svg>
+        </button>
+      </div>
+    </div>
+    <div class="input-wrap" id="inputWrap">
+      <div class="drop-overlay" id="dropOverlay"><span>Drop your JSON file here</span></div>
+      <div class="line-numbers" id="lineNumbers" aria-hidden="true">1</div>
+      <textarea id="jsonInput" placeholder="Paste JSON here, upload a file, or drag &amp; drop..." spellcheck="false" autocomplete="off" autocorrect="off" autocapitalize="off"></textarea>
+    </div>
+  </div>
+
+  <!-- Output Panel -->
+  <div class="panel" id="outputPanel">
+    <div class="panel-header">
+      <div style="display:flex;align-items:center;gap:8px">
+        <span class="panel-title">Output</span>
+        <div class="view-tabs" id="viewTabs">
+          <button class="view-tab active" data-view="tree" title="Tree View">Tree</button>
+          <button class="view-tab" data-view="raw" title="Raw Text">Raw</button>
+        </div>
+      </div>
+      <div class="panel-actions">
+        <span class="panel-info" id="outputStats"></span>
+        <span class="panel-info" id="outputFormat" style="margin-left:4px;font-weight:600;color:var(--accent)"></span>
+        <button class="btn btn-primary" id="btnCopy" title="Copy output to clipboard" style="margin-left:6px;height:26px;padding:2px 10px;font-size:11.5px">
+          <svg viewBox="0 0 16 16" style="width:12px;height:12px"><path d="M4 2a2 2 0 0 0-2 2v6h1.5V4a.5.5 0 0 1 .5-.5h5V2H4zm2 3a2 2 0 0 0-2 2v5a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2H6zm-.5 2a.5.5 0 0 1 .5-.5h4a.5.5 0 0 1 .5.5v5a.5.5 0 0 1-.5.5H6a.5.5 0 0 1-.5-.5V7z"/></svg>
+          Copy
+        </button>
+      </div>
+    </div>
+    <div class="output-wrap" id="jsonOutput" tabindex="0" role="region" aria-label="Formatted output"></div>
+  </div>
+</div>
+
+<!-- Upload Modal -->
+<div class="modal-overlay" id="uploadModal">
+  <div class="modal" role="dialog" aria-label="Upload JSON file">
+    <h2>Upload File</h2>
+    <p>Select a JSON, XML, YAML, or CSV file to load into the editor.</p>
+    <div class="upload-zone" id="uploadZone">
+      <svg viewBox="0 0 48 48"><path d="M24 4l-8 8h5v12h6V12h5L24 4zM8 34v6c0 2.2 1.8 4 4 4h24c2.2 0 4-1.8 4-4v-6H8z"/></svg>
+      <div class="uz-title">Click to browse or drag a file here</div>
+      <div class="uz-sub">.json &middot; .xml &middot; .yaml &middot; .yml &middot; .csv &middot; .tsv &middot; .txt</div>
+      <input type="file" id="fileInput" accept=".json,.xml,.yaml,.yml,.csv,.tsv,.txt,application/json,text/xml,text/yaml,text/csv,text/plain">
+    </div>
+    <div class="modal-footer">
+      <button class="btn" id="btnCloseModal">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ═══════════ DOM refs ═══════════ */
+  var input       = document.getElementById("jsonInput");
+  var output      = document.getElementById("jsonOutput");
+  var lineNums    = document.getElementById("lineNumbers");
+  var inputStats  = document.getElementById("inputStats");
+  var outputStats = document.getElementById("outputStats");
+  var outputFmt   = document.getElementById("outputFormat");
+  var indentSelect= document.getElementById("indentSelect");
+  var toastEl     = document.getElementById("toast");
+  var shortcutHint= document.getElementById("shortcutHint");
+  var dropOverlay = document.getElementById("dropOverlay");
+  var inputWrap   = document.getElementById("inputWrap");
+
+  var allCollapsed      = false;
+  var lastOutputText    = "";
+  var lastOutputFormat  = "json";
+  var currentView       = "tree";
+  var parsedData        = null;
+
+  var isMac = /Mac/.test(navigator.platform || navigator.userAgent || "");
+  shortcutHint.textContent = (isMac ? "\u2318" : "Ctrl") + "+Enter to format";
+
+  /* ═══════════ Theme ═══════════ */
+  document.getElementById("themeToggle").addEventListener("click", function(){
+    var el = document.documentElement;
+    var isDark = el.getAttribute("data-theme") === "dark";
+    el.setAttribute("data-theme", isDark ? "light" : "dark");
+    this.setAttribute("aria-checked", String(!isDark));
+  });
+
+  /* ═══════════ Line numbers ═══════════ */
+  function updateLineNumbers(){
+    var text = input.value;
+    var count = 1;
+    for(var i = 0; i < text.length; i++) if(text.charCodeAt(i) === 10) count++;
+    var arr = [];
+    for(var n = 1; n <= count; n++) arr.push(n);
+    lineNums.textContent = arr.join("\n");
+  }
+  input.addEventListener("scroll", function(){ lineNums.scrollTop = input.scrollTop; });
+
+  /* ═══════════ Input stats ═══════════ */
+  function updateInputStats(){
+    var t = input.value, c = t.length, b = new Blob([t]).size;
+    inputStats.textContent = c.toLocaleString() + " chars \u00b7 " + b.toLocaleString() + " bytes";
+  }
+  input.addEventListener("input", function(){ updateLineNumbers(); updateInputStats(); });
+
+  /* ═══════════ Indent change re-formats ═══════════ */
+  indentSelect.addEventListener("change", function(){
+    if(lastOutputFormat === "json" && parsedData !== null){
+      var pretty = JSON.stringify(parsedData, null, getIndentArg());
+      setOutput(pretty, "json", parsedData);
+    }
+  });
+
+  /* ═══════════ Toast ═══════════ */
+  var toastTimer = null;
+  function showToast(msg, type){
+    var icons = {
+      success: '<svg viewBox="0 0 16 16"><path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm3.7 5.7-4 4a1 1 0 0 1-1.4 0l-2-2a1 1 0 1 1 1.4-1.4L7 8.58l3.3-3.3a1 1 0 0 1 1.4 1.42z"/></svg>',
+      error: '<svg viewBox="0 0 16 16"><path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm-.75 4a.75.75 0 0 1 1.5 0v3a.75.75 0 0 1-1.5 0V5zM8 11.5A.75.75 0 1 1 8 10a.75.75 0 0 1 0 1.5z"/></svg>',
+      info: '<svg viewBox="0 0 16 16"><path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm-.75 4a.75.75 0 0 1 1.5 0v.5a.75.75 0 0 1-1.5 0V5zM6.5 8h1v3.5h1V8h.5v-.8h-2.5V8z"/></svg>'
+    };
+    var colors = { success: "var(--success)", error: "var(--danger)", info: "var(--accent)" };
+    toastEl.innerHTML = (icons[type] || icons.success) + " " + esc(msg);
+    toastEl.style.background = colors[type] || colors.success;
+    toastEl.classList.add("show");
+    if(toastTimer) clearTimeout(toastTimer);
+    toastTimer = setTimeout(function(){ toastEl.classList.remove("show"); }, 2500);
+  }
+
+  /* ═══════════ Helpers ═══════════ */
+  function esc(s){
+    return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+  }
+  function parseJSON(text){
+    try{ return { ok:true, value:JSON.parse(text) }; }
+    catch(e){
+      var msg = e.message || "Invalid JSON";
+      var line = null, col = null;
+      var m = msg.match(/position\s+(\d+)/i);
+      if(m){
+        var pos = parseInt(m[1],10); line=1; col=1;
+        for(var i=0;i<pos&&i<text.length;i++){
+          if(text.charCodeAt(i)===10){line++;col=1;}else col++;
+        }
+      }
+      return { ok:false, message:msg, line:line, col:col };
+    }
+  }
+  function getIndent(){
+    var v = indentSelect.value;
+    return v === "tab" ? "\t" : " ".repeat(parseInt(v,10));
+  }
+  function getIndentArg(){
+    var v = indentSelect.value;
+    return v === "tab" ? "\t" : parseInt(v,10);
+  }
+
+  /* ═══════════ Dropdowns ═══════════ */
+  function setupDropdown(btnId, menuId){
+    var btn = document.getElementById(btnId);
+    var menu = document.getElementById(menuId);
+    btn.addEventListener("click", function(e){
+      e.stopPropagation();
+      closeAllDropdowns();
+      menu.classList.toggle("open");
+      btn.setAttribute("aria-expanded", menu.classList.contains("open"));
+    });
+  }
+  function closeAllDropdowns(){
+    var menus = document.querySelectorAll(".dropdown-menu");
+    for(var i=0;i<menus.length;i++) menus[i].classList.remove("open");
+    var btns = document.querySelectorAll(".dropdown > .btn");
+    for(var j=0;j<btns.length;j++) btns[j].setAttribute("aria-expanded","false");
+  }
+  document.addEventListener("click", closeAllDropdowns);
+  setupDropdown("btnConvert","convertMenu");
+  setupDropdown("btnDownload","downloadMenu");
+
+  /* ═══════════ View tabs ═══════════ */
+  var viewTabs = document.querySelectorAll(".view-tab");
+  for(var vt=0; vt<viewTabs.length; vt++){
+    viewTabs[vt].addEventListener("click", function(){
+      for(var j=0;j<viewTabs.length;j++) viewTabs[j].classList.remove("active");
+      this.classList.add("active");
+      currentView = this.getAttribute("data-view");
+      refreshOutput();
+    });
+  }
+
+  /* ═══════════ Build tree HTML ═══════════ */
+  function buildTree(val, indentStr, depth){
+    if(val === null) return '<span class="s-null">null</span>';
+    var t = typeof val;
+    if(t === "boolean") return '<span class="s-bool">' + val + '</span>';
+    if(t === "number") return '<span class="s-num">' + val + '</span>';
+    if(t === "string") return '<span class="s-str">"' + esc(JSON.stringify(val).slice(1,-1)) + '"</span>';
+
+    var isArr = Array.isArray(val);
+    var entries = isArr ? val : Object.keys(val);
+    var len = entries.length;
+    var open = isArr ? "[" : "{";
+    var close = isArr ? "]" : "}";
+
+    if(len === 0) return '<span class="s-bracket">' + open + close + '</span>';
+
+    var indent = "";
+    for(var d = 0; d <= depth; d++) indent += indentStr;
+    var parentIndent = indent.substring(indentStr.length);
+
+    var html = '<span class="coll"><button class="coll-toggle" aria-label="Toggle" aria-expanded="true">\u25BC</button>';
+    html += '<span class="s-bracket">' + open + '</span>';
+    html += '<span class="coll-summary"> ' + len + (isArr ? " item" : " propert") + (isArr ? (len!==1?"s":"") : (len!==1?"ies":"y")) + " \u2026 " + close + '</span>';
+    html += '<span class="coll-content">';
+    for(var i = 0; i < len; i++){
+      html += "\n" + indent;
+      if(isArr){
+        html += buildTree(val[i], indentStr, depth+1);
+      } else {
+        var k = entries[i];
+        html += '<span class="s-key">"' + esc(k) + '"</span>: ';
+        html += buildTree(val[k], indentStr, depth+1);
+      }
+      if(i < len-1) html += ",";
+    }
+    html += "\n" + parentIndent + '<span class="s-bracket">' + close + '</span></span></span>';
+    return html;
+  }
+
+  /* ═══════════ JSON → XML ═══════════ */
+  function jsonToXml(obj, rootName, indent, depth){
+    var pad = ""; for(var d=0;d<depth;d++) pad += indent;
+    var pad1 = pad + indent;
+
+    if(obj === null) return pad + "<" + rootName + " />";
+    if(typeof obj !== "object") return pad + "<" + rootName + ">" + esc(String(obj)) + "</" + rootName + ">";
+
+    if(Array.isArray(obj)){
+      if(obj.length === 0) return pad + "<" + rootName + " />";
+      var items = [];
+      for(var i=0; i<obj.length; i++){
+        items.push(jsonToXml(obj[i], "item", indent, depth));
+      }
+      return pad + "<" + rootName + ">\n" + items.join("\n") + "\n" + pad + "</" + rootName + ">";
+    }
+
+    var keys = Object.keys(obj);
+    if(keys.length === 0) return pad + "<" + rootName + " />";
+    var children = [];
+    for(var ki=0; ki<keys.length; ki++){
+      var tag = keys[ki].replace(/[^a-zA-Z0-9_.-]/g, "_");
+      if(/^[0-9]/.test(tag)) tag = "_" + tag;
+      children.push(jsonToXml(obj[keys[ki]], tag, indent, depth+1));
+    }
+    return pad + "<" + rootName + ">\n" + children.join("\n") + "\n" + pad + "</" + rootName + ">";
+  }
+  function toXml(data){
+    return '<?xml version="1.0" encoding="UTF-8"?>\n' + jsonToXml(data, "root", getIndent(), 0);
+  }
+
+  /* ═══════════ JSON → YAML ═══════════ */
+  function jsonToYaml(obj, indent, depth){
+    var pad = ""; for(var d=0;d<depth;d++) pad += indent;
+
+    if(obj === null) return "null";
+    if(typeof obj === "boolean") return obj ? "true" : "false";
+    if(typeof obj === "number") return String(obj);
+    if(typeof obj === "string"){
+      if(/[\n\r:#{}[\],&*?|>!%@`]/.test(obj) || obj === "" || obj === "true" || obj === "false" || obj === "null" || !isNaN(Number(obj)))
+        return '"' + obj.replace(/\\/g,"\\\\").replace(/"/g,'\\"').replace(/\n/g,"\\n").replace(/\r/g,"\\r") + '"';
+      return obj;
+    }
+
+    if(Array.isArray(obj)){
+      if(obj.length === 0) return "[]";
+      var lines = [];
+      for(var i=0; i<obj.length; i++){
+        var val = jsonToYaml(obj[i], indent, depth+1);
+        if(typeof obj[i] === "object" && obj[i] !== null && !Array.isArray(obj[i]) && Object.keys(obj[i]).length > 0){
+          var firstLine = val.trimStart();
+          lines.push(pad + "- " + firstLine);
+        } else if(Array.isArray(obj[i]) && obj[i].length > 0){
+          lines.push(pad + "-");
+          lines.push(val);
+        } else {
+          lines.push(pad + "- " + val);
+        }
+      }
+      return lines.join("\n");
+    }
+
+    var keys = Object.keys(obj);
+    if(keys.length === 0) return "{}";
+    var parts = [];
+    for(var ki=0; ki<keys.length; ki++){
+      var k = keys[ki];
+      var kStr = /[:#{}[\],&*?|>!%@`\s]/.test(k) || k === "" ? '"'+k.replace(/"/g,'\\"')+'"' : k;
+      var v = obj[k];
+      if(typeof v === "object" && v !== null){
+        var nested = jsonToYaml(v, indent, depth+1);
+        if((Array.isArray(v) && v.length > 0) || (!Array.isArray(v) && Object.keys(v).length > 0)){
+          parts.push(pad + kStr + ":\n" + nested);
+        } else {
+          parts.push(pad + kStr + ": " + nested);
+        }
+      } else {
+        parts.push(pad + kStr + ": " + jsonToYaml(v, indent, depth+1));
+      }
+    }
+    return parts.join("\n");
+  }
+  function toYaml(data){
+    return jsonToYaml(data, getIndent(), 0);
+  }
+
+  /* ═══════════ JSON → CSV / TSV ═══════════ */
+  function flattenForCsv(data){
+    var rows = [];
+    if(Array.isArray(data)){
+      for(var i=0;i<data.length;i++){
+        if(typeof data[i]==="object" && data[i]!==null && !Array.isArray(data[i])){
+          rows.push(data[i]);
+        } else {
+          rows.push({ value: data[i] });
+        }
+      }
+    } else if(typeof data==="object" && data!==null){
+      rows.push(data);
+    } else {
+      rows.push({ value: data });
+    }
+    return rows;
+  }
+  function toCsv(data, sep){
+    sep = sep || ",";
+    var rows = flattenForCsv(data);
+    if(rows.length === 0) return "";
+    var allKeys = [];
+    var keySet = {};
+    for(var r=0;r<rows.length;r++){
+      var keys = Object.keys(rows[r]);
+      for(var k=0;k<keys.length;k++){
+        if(!keySet[keys[k]]){ keySet[keys[k]]=true; allKeys.push(keys[k]); }
+      }
+    }
+    function csvEsc(val){
+      if(val===null||val===undefined) return "";
+      var s = typeof val==="object" ? JSON.stringify(val) : String(val);
+      if(s.indexOf(sep)>-1||s.indexOf('"')>-1||s.indexOf('\n')>-1||s.indexOf('\r')>-1)
+        return '"'+s.replace(/"/g,'""')+'"';
+      return s;
+    }
+    var lines = [allKeys.map(csvEsc).join(sep)];
+    for(var ri=0;ri<rows.length;ri++){
+      var cells = [];
+      for(var ki=0;ki<allKeys.length;ki++) cells.push(csvEsc(rows[ri][allKeys[ki]]));
+      lines.push(cells.join(sep));
+    }
+    return lines.join("\n");
+  }
+
+  /* ═══════════ Syntax highlight for non-JSON formats ═══════════ */
+  function highlightXml(text){
+    return text.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
+      .replace(/&lt;(\/?)([\w._-]+)(.*?)(\/?)\s*&gt;/g, function(m, slash, tag, attrs, selfClose){
+        var attrHtml = attrs.replace(/([\w._:-]+)=(&quot;|")(.*?)(\2)/g,
+          '<span class="x-attr">$1</span>=<span class="x-val">"$3"</span>');
+        return '<span class="x-tag">&lt;'+slash+tag+'</span>'+attrHtml+'<span class="x-tag">'+selfClose+'&gt;</span>';
+      })
+      .replace(/&lt;\?(.+?)\?&gt;/g,'<span class="x-cdata">&lt;?$1?&gt;</span>');
+  }
+  function highlightYaml(text){
+    return esc(text).replace(/^(\s*)([\w"'][^:\n]*?)(:)/gm, function(m, space, key, colon){
+      return space + '<span class="y-key">' + key + '</span>' + colon;
+    }).replace(/^(\s*)(- )/gm, '$1<span class="y-dash">- </span>')
+      .replace(/: (true|false)\s*$/gm, ': <span class="y-bool">$1</span>')
+      .replace(/: (null)\s*$/gm, ': <span class="y-null">$1</span>')
+      .replace(/: (-?\d+\.?\d*(?:e[+-]?\d+)?)\s*$/gmi, ': <span class="y-num">$1</span>')
+      .replace(/: (".*?")\s*$/gm, ': <span class="y-str">$1</span>');
+  }
+
+  /* ═══════════ Show error ═══════════ */
+  function showError(parsed){
+    var h = '<div class="error-msg"><div class="error-title"><svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm-.75 4a.75.75 0 0 1 1.5 0v3a.75.75 0 0 1-1.5 0V5zM8 11.5A.75.75 0 1 1 8 10a.75.75 0 0 1 0 1.5z"/></svg>Invalid JSON</div>';
+    h += '<div>' + esc(parsed.message) + '</div>';
+    if(parsed.line !== null){
+      h += '<div class="error-detail">Error near line ' + parsed.line + ', column ' + parsed.col + '</div>';
+      var lines = input.value.split("\n");
+      if(parsed.line <= lines.length){
+        var errorLine = lines[parsed.line - 1];
+        h += '<div class="error-line"><strong>Line ' + parsed.line + ':</strong> ' + esc(errorLine) + '</div>';
+      }
+    }
+    h += '</div>';
+    output.innerHTML = h;
+    outputStats.textContent = "";
+    outputFmt.textContent = "";
+    lastOutputText = "";
+    parsedData = null;
+  }
+
+  /* ═══════════ Refresh output ═══════════ */
+  function refreshOutput(){
+    if(!lastOutputText) return;
+    if(currentView === "raw"){
+      output.innerHTML = '<span style="white-space:pre-wrap;word-break:break-all">' + esc(lastOutputText) + '</span>';
+    } else {
+      if(lastOutputFormat === "json" && parsedData !== null){
+        output.innerHTML = buildTree(parsedData, getIndent(), 0);
+        attachToggleListeners();
+        allCollapsed = false;
+      } else if(lastOutputFormat === "xml"){
+        output.innerHTML = highlightXml(lastOutputText);
+      } else if(lastOutputFormat === "yaml"){
+        output.innerHTML = highlightYaml(lastOutputText);
+      } else {
+        output.innerHTML = '<span style="white-space:pre-wrap;word-break:break-all">' + esc(lastOutputText) + '</span>';
+      }
+    }
+  }
+
+  /* ═══════════ PII Redaction ═══════════ */
+  var piiKeys = /^(ssn|ein|social_security|social_security_number|tax_id|taxpayer_id|tin)$/i;
+  var ssnPattern = /\b\d{3}-?\d{2}-?\d{4}\b/g;
+  var einPattern = /\b\d{2}-?\d{7}\b/g;
+  function redactValue(val){
+    if(typeof val === "string"){
+      if(ssnPattern.test(val) || einPattern.test(val)){
+        ssnPattern.lastIndex = 0; einPattern.lastIndex = 0;
+        return "<REDACTED>";
+      }
+      ssnPattern.lastIndex = 0; einPattern.lastIndex = 0;
+    }
+    return val;
+  }
+  function redactPII(obj){
+    if(obj === null || typeof obj !== "object") return redactValue(obj);
+    if(Array.isArray(obj)){
+      var arr = [];
+      for(var i = 0; i < obj.length; i++) arr.push(redactPII(obj[i]));
+      return arr;
+    }
+    var out = {};
+    var keys = Object.keys(obj);
+    for(var k = 0; k < keys.length; k++){
+      var key = keys[k];
+      if(piiKeys.test(key)){
+        out[key] = "<REDACTED>";
+      } else {
+        out[key] = redactPII(obj[key]);
+      }
+    }
+    return out;
+  }
+
+  /* ═══════════ Set output ═══════════ */
+  function setOutput(text, format, data){
+    if(data !== null && data !== undefined){
+      data = redactPII(data);
+      if(format === "json") text = JSON.stringify(data, null, getIndentArg());
+    } else {
+      text = text.replace(ssnPattern, "<REDACTED>");
+      ssnPattern.lastIndex = 0;
+      text = text.replace(einPattern, "<REDACTED>");
+      einPattern.lastIndex = 0;
+    }
+    lastOutputText = text;
+    lastOutputFormat = format;
+    parsedData = data || null;
+    var fmtLabels = {json:"JSON",xml:"XML",yaml:"YAML",csv:"CSV",tsv:"TSV"};
+    outputFmt.textContent = fmtLabels[format] || "";
+    outputStats.textContent = text.length.toLocaleString() + " chars";
+    refreshOutput();
+  }
+
+  /* ═══════════ FORMAT ═══════════ */
+  function doFormat(){
+    var text = input.value.trim();
+    if(!text){ showPlaceholder("Paste JSON in the input panel and click Format."); return; }
+    var parsed = parseJSON(text);
+    if(!parsed.ok){ showError(parsed); return; }
+    var pretty = JSON.stringify(parsed.value, null, getIndentArg());
+    setOutput(pretty, "json", parsed.value);
+    showToast("Formatted successfully", "success");
+  }
+
+  /* ═══════════ MINIFY ═══════════ */
+  function doMinify(){
+    var text = input.value.trim();
+    if(!text){ showPlaceholder("Paste JSON in the input panel and click Minify."); return; }
+    var parsed = parseJSON(text);
+    if(!parsed.ok){ showError(parsed); return; }
+    var mini = JSON.stringify(parsed.value);
+    setOutput(mini, "json", parsed.value);
+    showToast("Minified successfully", "success");
+  }
+
+  /* ═══════════ VALIDATE ═══════════ */
+  function doValidate(){
+    var text = input.value.trim();
+    if(!text){ showToast("Nothing to validate", "error"); return; }
+    var parsed = parseJSON(text);
+    if(!parsed.ok){
+      showError(parsed);
+      showToast("Invalid JSON \u2014 see output for details", "error");
+    } else {
+      showToast("Valid JSON \u2714", "success");
+      if(!lastOutputText) doFormat();
+    }
+  }
+
+  /* ═══════════ CONVERT ═══════════ */
+  function doConvert(format){
+    var text = input.value.trim();
+    if(!text){ showToast("Nothing to convert", "error"); return; }
+    var parsed = parseJSON(text);
+    if(!parsed.ok){ showError(parsed); return; }
+    var safeData = redactPII(parsed.value);
+    var result;
+    try{
+      switch(format){
+        case "xml":  result = toXml(safeData); break;
+        case "yaml": result = toYaml(safeData); break;
+        case "csv":  result = toCsv(safeData, ","); break;
+        case "tsv":  result = toCsv(safeData, "\t"); break;
+        default: return;
+      }
+    }catch(err){ showToast("Conversion failed: " + err.message, "error"); return; }
+    setOutput(result, format, safeData);
+    showToast("Converted to " + format.toUpperCase(), "success");
+  }
+
+  /* ═══════════ DOWNLOAD ═══════════ */
+  function doDownload(format){
+    var text = input.value.trim();
+    if(!text){ showToast("Nothing to download", "error"); return; }
+    var parsed = parseJSON(text);
+    if(!parsed.ok){ showError(parsed); showToast("Fix JSON errors before downloading", "error"); return; }
+    var safeData = redactPII(parsed.value);
+    var content, mime, ext;
+    try{
+      switch(format){
+        case "json":
+          content = JSON.stringify(safeData, null, getIndentArg());
+          mime = "application/json"; ext = "json"; break;
+        case "xml":
+          content = toXml(safeData);
+          mime = "application/xml"; ext = "xml"; break;
+        case "yaml":
+          content = toYaml(safeData);
+          mime = "text/yaml"; ext = "yaml"; break;
+        case "csv":
+          content = toCsv(safeData, ",");
+          mime = "text/csv"; ext = "csv"; break;
+        case "tsv":
+          content = toCsv(safeData, "\t");
+          mime = "text/tab-separated-values"; ext = "tsv"; break;
+        default: return;
+      }
+    }catch(err){ showToast("Export failed: " + err.message, "error"); return; }
+    var blob = new Blob([content], {type: mime + ";charset=utf-8"});
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a");
+    a.href = url; a.download = "data." + ext;
+    document.body.appendChild(a); a.click();
+    document.body.removeChild(a);
+    setTimeout(function(){ URL.revokeObjectURL(url); }, 1000);
+    showToast("Downloaded data." + ext, "success");
+  }
+
+  /* ═══════════ UPLOAD ═══════════ */
+  var uploadModal = document.getElementById("uploadModal");
+  var uploadZone  = document.getElementById("uploadZone");
+  var fileInput   = document.getElementById("fileInput");
+
+  function openUploadModal(){
+    uploadModal.classList.add("open");
+    fileInput.value = "";
+  }
+  function closeUploadModal(){ uploadModal.classList.remove("open"); }
+
+  document.getElementById("btnUpload").addEventListener("click", openUploadModal);
+  document.getElementById("btnCloseModal").addEventListener("click", closeUploadModal);
+  uploadModal.addEventListener("click", function(e){ if(e.target === uploadModal) closeUploadModal(); });
+  document.addEventListener("keydown", function(e){ if(e.key==="Escape") closeUploadModal(); });
+
+  uploadZone.addEventListener("click", function(){ fileInput.click(); });
+  uploadZone.addEventListener("dragover", function(e){ e.preventDefault(); uploadZone.classList.add("drag-over"); });
+  uploadZone.addEventListener("dragleave", function(){ uploadZone.classList.remove("drag-over"); });
+  uploadZone.addEventListener("drop", function(e){
+    e.preventDefault(); uploadZone.classList.remove("drag-over");
+    if(e.dataTransfer.files.length) loadFile(e.dataTransfer.files[0]);
+  });
+  fileInput.addEventListener("change", function(){ if(fileInput.files.length) loadFile(fileInput.files[0]); });
+
+  function loadFile(file){
+    if(file.size > 10 * 1024 * 1024){
+      showToast("File too large (max 10 MB)", "error"); return;
+    }
+    var reader = new FileReader();
+    reader.onload = function(){
+      input.value = reader.result;
+      updateLineNumbers(); updateInputStats();
+      closeUploadModal();
+      showToast("Loaded " + file.name + " (" + (file.size/1024).toFixed(1) + " KB)", "success");
+    };
+    reader.onerror = function(){ showToast("Failed to read file", "error"); };
+    reader.readAsText(file);
+  }
+
+  /* ═══════════ Drag & drop on input panel ═══════════ */
+  var dragCounter = 0;
+  inputWrap.addEventListener("dragenter", function(e){
+    e.preventDefault(); dragCounter++;
+    dropOverlay.classList.add("active");
+  });
+  inputWrap.addEventListener("dragleave", function(e){
+    e.preventDefault(); dragCounter--;
+    if(dragCounter <= 0){ dragCounter=0; dropOverlay.classList.remove("active"); }
+  });
+  inputWrap.addEventListener("dragover", function(e){ e.preventDefault(); });
+  inputWrap.addEventListener("drop", function(e){
+    e.preventDefault(); dragCounter=0; dropOverlay.classList.remove("active");
+    if(e.dataTransfer.files.length) loadFile(e.dataTransfer.files[0]);
+  });
+
+  /* ═══════════ COPY ═══════════ */
+  function doCopy(){
+    if(!lastOutputText){ showToast("Nothing to copy", "error"); return; }
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(lastOutputText).then(
+        function(){ showToast("Copied to clipboard!", "success"); },
+        function(){ fallbackCopy(); }
+      );
+    } else fallbackCopy();
+  }
+  function fallbackCopy(){
+    try{
+      var ta = document.createElement("textarea");
+      ta.value = lastOutputText; ta.style.cssText="position:fixed;left:-9999px";
+      document.body.appendChild(ta); ta.select(); document.execCommand("copy");
+      document.body.removeChild(ta); showToast("Copied to clipboard!", "success");
+    }catch(e){ showToast("Copy failed", "error"); }
+  }
+
+  /* ═══════════ CLEAR ═══════════ */
+  function doClear(){
+    input.value = ""; lastOutputText = ""; parsedData = null;
+    showPlaceholder("Paste JSON in the input panel and click Format.");
+    outputStats.textContent = ""; outputFmt.textContent = "";
+    updateLineNumbers(); updateInputStats(); input.focus();
+  }
+
+  /* ═══════════ TOGGLE ALL ═══════════ */
+  function doToggleAll(){
+    var colls = output.querySelectorAll(".coll");
+    if(!colls.length) return;
+    allCollapsed = !allCollapsed;
+    for(var i=0;i<colls.length;i++){
+      var tog = colls[i].querySelector(".coll-toggle");
+      if(allCollapsed){
+        colls[i].classList.add("collapsed");
+        if(tog){ tog.textContent="\u25B6"; tog.setAttribute("aria-expanded","false"); }
+      } else {
+        colls[i].classList.remove("collapsed");
+        if(tog){ tog.textContent="\u25BC"; tog.setAttribute("aria-expanded","true"); }
+      }
+    }
+  }
+
+  /* ═══════════ Toggle listeners ═══════════ */
+  function attachToggleListeners(){
+    var toggles = output.querySelectorAll(".coll-toggle");
+    for(var i=0;i<toggles.length;i++){
+      toggles[i].addEventListener("click", function(){
+        var coll = this.parentElement;
+        var collapsed = coll.classList.toggle("collapsed");
+        this.textContent = collapsed ? "\u25B6" : "\u25BC";
+        this.setAttribute("aria-expanded", String(!collapsed));
+      });
+    }
+  }
+
+  /* ═══════════ SAMPLE ═══════════ */
+  function loadSample(){
+    input.value = JSON.stringify({
+      "company": "Acme Corp",
+      "founded": 2010,
+      "active": true,
+      "address": {
+        "street": "123 Innovation Drive",
+        "city": "San Francisco",
+        "state": "CA",
+        "zip": "94105"
+      },
+      "employees": [
+        {"id": 1, "name": "Alice Johnson", "role": "CEO", "skills": ["leadership", "strategy"]},
+        {"id": 2, "name": "Bob Smith", "role": "CTO", "skills": ["engineering", "architecture"]},
+        {"id": 3, "name": "Carol White", "role": "Designer", "skills": ["UI/UX", "prototyping"]}
+      ],
+      "metrics": {
+        "revenue": 5200000,
+        "customers": 1240,
+        "nps": 72,
+        "regions": ["NA", "EU", "APAC"]
+      },
+      "metadata": null
+    }, null, 2);
+    updateLineNumbers(); updateInputStats();
+    showToast("Sample JSON loaded", "info");
+  }
+
+  /* ═══════════ Placeholder ═══════════ */
+  function showPlaceholder(msg){
+    output.innerHTML = '<div style="color:var(--text3);padding:20px;text-align:center;line-height:1.8">'
+      + '<svg width="48" height="48" viewBox="0 0 16 16" fill="currentColor" style="opacity:.25;display:block;margin:0 auto 12px"><path d="M4 1.5A1.5 1.5 0 0 0 2.5 3v10A1.5 1.5 0 0 0 4 14.5h8a1.5 1.5 0 0 0 1.5-1.5V5.621a1.5 1.5 0 0 0-.44-1.06L10.44 1.94A1.5 1.5 0 0 0 9.378 1.5H4zM5 7h6v1.2H5V7zm0 2.5h4v1.2H5V9.5z"/></svg>'
+      + '<div style="font-size:13px;font-weight:500">' + msg + '</div>'
+      + '<div style="font-size:12px;margin-top:6px">Or drag &amp; drop a file \u2022 Click <strong>Upload</strong> to browse \u2022 Click <strong>+</strong> for sample data</div>'
+      + '</div>';
+  }
+
+  /* ═══════════ Convert menu items ═══════════ */
+  var convertItems = document.querySelectorAll("#convertMenu .dropdown-item");
+  for(var ci=0;ci<convertItems.length;ci++){
+    convertItems[ci].addEventListener("click", function(){
+      doConvert(this.getAttribute("data-format"));
+      closeAllDropdowns();
+    });
+  }
+
+  /* ═══════════ Download menu items ═══════════ */
+  var downloadItems = document.querySelectorAll("#downloadMenu .dropdown-item");
+  for(var di=0;di<downloadItems.length;di++){
+    downloadItems[di].addEventListener("click", function(){
+      doDownload(this.getAttribute("data-dl"));
+      closeAllDropdowns();
+    });
+  }
+
+  /* ═══════════ Button bindings ═══════════ */
+  document.getElementById("btnFormat").addEventListener("click", doFormat);
+  document.getElementById("btnMinify").addEventListener("click", doMinify);
+  document.getElementById("btnValidate").addEventListener("click", doValidate);
+  document.getElementById("btnCopy").addEventListener("click", doCopy);
+  document.getElementById("btnToggleAll").addEventListener("click", doToggleAll);
+  document.getElementById("btnClear").addEventListener("click", doClear);
+  document.getElementById("btnSample").addEventListener("click", loadSample);
+
+  /* ═══════════ Keyboard shortcut ═══════════ */
+  document.addEventListener("keydown", function(e){
+    if(e.key === "Enter" && (e.ctrlKey || e.metaKey)){
+      e.preventDefault(); doFormat();
+    }
+  });
+
+  /* ═══════════ Init ═══════════ */
+  updateLineNumbers();
+  updateInputStats();
+  showPlaceholder("Paste JSON in the input panel and click Format.");
+})();
+</script>
+</body>
+</html>
