@@ -6,1037 +6,1873 @@
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; connect-src blob:;">
 <title>JSON Formatter &amp; Converter</title>
 <style>
+/* ── Reset ── */
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+
+/* ── Design tokens ── */
 :root{
-  --bg:#f5f6f8;--bg2:#ffffff;--bg3:#e9ecef;--bg4:#f1f3f5;
-  --border:#dce0e5;--border2:#c9cdd3;
-  --text:#1a1d23;--text2:#495057;--text3:#868e96;
-  --accent:#4361ee;--accent-hover:#3a56d4;--accent-light:#eef1ff;--accent-text:#fff;
-  --danger:#e03131;--danger-light:#fff0f0;--success:#2f9e44;--success-light:#ebfbee;
-  --warning:#f08c00;--warning-light:#fff9db;
-  --key:#7c3aed;--str:#16a34a;--num:#2563eb;--bool:#ea580c;--null-color:#868e96;
-  --shadow-sm:0 1px 2px rgba(0,0,0,.05);--shadow:0 2px 8px rgba(0,0,0,.08);--shadow-lg:0 8px 24px rgba(0,0,0,.12);
-  --radius:6px;--radius-lg:10px;
-  --font-mono:'SF Mono','Menlo','Consolas','DejaVu Sans Mono','Liberation Mono',monospace;
-  --font-sans:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
-  --header-h:50px;--toolbar-h:46px;
+  --bg:#f5f6f8; --bg2:#ffffff; --bg3:#e9ecef; --bg4:#f1f3f5;
+  --border:#dce0e5; --border2:#c9cdd3;
+  --text:#1a1d23; --text2:#495057; --text3:#868e96;
+  --accent:#4361ee; --accent-h:#3a56d4; --accent-lt:#eef1ff; --accent-tx:#fff;
+  --danger:#e03131; --danger-lt:#fff0f0;
+  --success:#2f9e44; --success-lt:#ebfbee;
+  --warn:#f08c00;
+  --key:#7c3aed; --str:#16a34a; --num:#2563eb; --bool:#ea580c; --null-c:#868e96;
+  --sh-sm:0 1px 2px rgba(0,0,0,.05);
+  --sh:0 2px 8px rgba(0,0,0,.08);
+  --sh-lg:0 8px 24px rgba(0,0,0,.13);
+  --r:6px; --r-lg:10px;
+  /* CRITICAL — both textarea and line-gutter must use the exact same values */
+  --mono:'SF Mono','Menlo','Consolas','DejaVu Sans Mono','Liberation Mono',monospace;
+  --code-size:13px;
+  --code-lh:20px; /* explicit px — never unitless, avoids cross-element drift */
+  --code-pad:10px; /* top/bottom padding inside code areas */
+  --sans:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
 }
 [data-theme="dark"]{
-  --bg:#111318;--bg2:#1a1d24;--bg3:#22252d;--bg4:#2a2d36;
-  --border:#2e323b;--border2:#3d424d;
-  --text:#d4d7dd;--text2:#9ca0a8;--text3:#6b7080;
-  --accent:#748ffc;--accent-hover:#5c7cfa;--accent-light:#252a3a;--accent-text:#111318;
-  --danger:#ff6b6b;--danger-light:#2d1a1a;--success:#51cf66;--success-light:#1a2d1e;
-  --warning:#ffd43b;--warning-light:#2d2a1a;
-  --key:#b197fc;--str:#69db7c;--num:#74c0fc;--bool:#ffa94d;--null-color:#868e96;
-  --shadow-sm:0 1px 2px rgba(0,0,0,.2);--shadow:0 2px 8px rgba(0,0,0,.3);--shadow-lg:0 8px 24px rgba(0,0,0,.4);
+  --bg:#111318; --bg2:#1a1d24; --bg3:#22252d; --bg4:#2a2d36;
+  --border:#2e323b; --border2:#3d424d;
+  --text:#d4d7dd; --text2:#9ca0a8; --text3:#6b7080;
+  --accent:#748ffc; --accent-h:#5c7cfa; --accent-lt:#1e2440; --accent-tx:#0d1117;
+  --danger:#ff6b6b; --danger-lt:#2d1a1a;
+  --success:#51cf66; --success-lt:#1a2d1e;
+  --warn:#ffd43b;
+  --key:#b197fc; --str:#69db7c; --num:#74c0fc; --bool:#ffa94d; --null-c:#868e96;
+  --sh-sm:0 1px 2px rgba(0,0,0,.25);
+  --sh:0 2px 8px rgba(0,0,0,.35);
+  --sh-lg:0 8px 24px rgba(0,0,0,.5);
 }
-html,body{height:100%;font-family:var(--font-sans);background:var(--bg);color:var(--text)}
+
+html,body{height:100%;font-family:var(--sans);background:var(--bg);color:var(--text)}
 body{display:flex;flex-direction:column;overflow:hidden}
 ::selection{background:var(--accent);color:#fff}
 
-/* ───── Header ───── */
-.header{display:flex;align-items:center;justify-content:space-between;padding:0 20px;height:var(--header-h);background:var(--bg2);border-bottom:1px solid var(--border);flex-shrink:0;gap:12px}
-.header-left{display:flex;align-items:center;gap:10px}
-.logo{display:flex;align-items:center;gap:8px;text-decoration:none;color:var(--text)}
-.logo-icon{width:28px;height:28px;background:var(--accent);border-radius:6px;display:flex;align-items:center;justify-content:center}
+/* ───────── Header ───────── */
+.hdr{display:flex;align-items:center;justify-content:space-between;padding:0 18px;height:48px;background:var(--bg2);border-bottom:1px solid var(--border);flex-shrink:0;gap:12px}
+.logo{display:flex;align-items:center;gap:8px}
+.logo-icon{width:28px;height:28px;background:var(--accent);border-radius:6px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
 .logo-icon svg{width:16px;height:16px;fill:#fff}
-.logo h1{font-size:16px;font-weight:700;letter-spacing:-.3px;white-space:nowrap}
-.logo span{font-size:16px;font-weight:400;color:var(--text3)}
-.header-right{display:flex;align-items:center;gap:10px}
-.badge{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;font-size:10.5px;font-weight:600;color:var(--success);border:1.5px solid var(--success);border-radius:20px;white-space:nowrap;user-select:none}
-.badge svg{width:12px;height:12px;fill:currentColor;flex-shrink:0}
-.theme-toggle{position:relative;width:40px;height:22px;background:var(--bg3);border:1px solid var(--border);border-radius:11px;cursor:pointer;transition:background .2s;flex-shrink:0}
-.theme-toggle:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-.theme-toggle::after{content:'';position:absolute;top:2px;left:2px;width:16px;height:16px;background:var(--accent);border-radius:50%;transition:transform .2s}
-[data-theme="dark"] .theme-toggle::after{transform:translateX(18px)}
-.theme-icons{display:flex;align-items:center;gap:2px;margin-right:2px}
-.theme-icons svg{width:14px;height:14px;fill:var(--text3)}
+.logo h1{font-size:15px;font-weight:700;letter-spacing:-.3px;white-space:nowrap}
+.logo h1 span{font-weight:400;color:var(--text3)}
+.hdr-r{display:flex;align-items:center;gap:10px}
+.badge{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;font-size:10.5px;font-weight:600;color:var(--success);border:1.5px solid var(--success);border-radius:20px;white-space:nowrap;user-select:none}
+.badge svg{width:11px;height:11px;fill:currentColor;flex-shrink:0}
+.theme-wrap{display:flex;align-items:center;gap:5px}
+.theme-wrap svg{width:13px;height:13px;fill:var(--text3)}
+.tog{position:relative;width:38px;height:21px;background:var(--bg3);border:1px solid var(--border);border-radius:11px;cursor:pointer;transition:background .2s;flex-shrink:0;appearance:none;padding:0}
+.tog:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.tog::after{content:'';position:absolute;top:2px;left:2px;width:15px;height:15px;background:var(--accent);border-radius:50%;transition:transform .2s}
+[data-theme="dark"] .tog::after{transform:translateX(17px)}
 
-/* ───── Toolbar ───── */
-.toolbar{display:flex;align-items:center;gap:6px;padding:0 16px;min-height:var(--toolbar-h);background:var(--bg2);border-bottom:1px solid var(--border);flex-shrink:0;flex-wrap:wrap;padding-top:7px;padding-bottom:7px;justify-content:flex-end}
-.toolbar::-webkit-scrollbar{display:none}
-.btn{display:inline-flex;align-items:center;gap:5px;padding:5px 12px;font-size:12.5px;font-weight:500;font-family:var(--font-sans);border:1px solid var(--border);border-radius:var(--radius);background:var(--bg2);color:var(--text);cursor:pointer;transition:all .15s;white-space:nowrap;height:32px}
+/* ───────── Toolbar ───────── */
+.tbr{display:flex;align-items:center;gap:5px;padding:0 14px;height:44px;background:var(--bg2);border-bottom:1px solid var(--border);flex-shrink:0;overflow-x:auto}
+.tbr::-webkit-scrollbar{display:none}
+.btn{display:inline-flex;align-items:center;gap:5px;padding:0 11px;font-size:12.5px;font-weight:500;font-family:var(--sans);border:1px solid var(--border);border-radius:var(--r);background:var(--bg2);color:var(--text);cursor:pointer;transition:all .14s;white-space:nowrap;height:30px;flex-shrink:0}
 .btn:hover{background:var(--bg3);border-color:var(--border2)}
 .btn:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
-.btn:active{transform:scale(.97)}
-.btn svg{width:14px;height:14px;fill:currentColor;flex-shrink:0}
-.btn-primary{background:var(--accent);color:var(--accent-text);border-color:var(--accent);font-weight:600}
-.btn-primary:hover{background:var(--accent-hover);border-color:var(--accent-hover)}
-.btn-success{color:var(--success);border-color:var(--success)}
-.btn-success:hover{background:var(--success);color:#fff}
-.btn-success:hover svg{fill:#fff}
-.btn-danger{color:var(--danger);border-color:var(--danger)}
-.btn-danger:hover{background:var(--danger);color:#fff}
-.btn-danger:hover svg{fill:#fff}
-.sep{width:1px;height:22px;background:var(--border);flex-shrink:0;margin:0 2px}
-.toolbar select{padding:5px 8px;font-size:12.5px;font-family:var(--font-sans);border:1px solid var(--border);border-radius:var(--radius);background:var(--bg2);color:var(--text);cursor:pointer;height:32px}
-.toolbar select:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
-.toolbar label{font-size:12px;color:var(--text2);display:flex;align-items:center;gap:4px;white-space:nowrap}
-.shortcut-hint{font-size:10.5px;color:var(--text3);flex-shrink:0}
+.btn:active{opacity:.85;transform:scale(.97)}
+.btn svg{width:13px;height:13px;fill:currentColor;flex-shrink:0}
+.btn-pri{background:var(--accent);color:var(--accent-tx);border-color:var(--accent);font-weight:600}
+.btn-pri:hover{background:var(--accent-h);border-color:var(--accent-h)}
+.btn-ok{color:var(--success);border-color:var(--success)}
+.btn-ok:hover{background:var(--success);color:#fff}
+.btn-ok:hover svg{fill:#fff}
+.btn-del{color:var(--danger);border-color:var(--danger)}
+.btn-del:hover{background:var(--danger);color:#fff}
+.btn-del:hover svg{fill:#fff}
+.sep{width:1px;height:20px;background:var(--border);flex-shrink:0;margin:0 1px}
+.tbr select,.tbr-select{padding:0 8px;font-size:12px;font-family:var(--sans);border:1px solid var(--border);border-radius:var(--r);background:var(--bg2);color:var(--text);cursor:pointer;height:30px;flex-shrink:0}
+.tbr select:focus-visible,.tbr-select:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.tbr-label{font-size:12px;color:var(--text2);display:flex;align-items:center;gap:4px;white-space:nowrap;flex-shrink:0}
+.kbd{font-size:10px;color:var(--text3);background:var(--bg3);border:1px solid var(--border);border-radius:3px;padding:1px 5px;font-family:var(--mono);margin-left:auto;flex-shrink:0}
 
-/* ───── Dropdown ───── */
-.dropdown{position:relative;display:inline-flex}
-.dropdown-menu{position:absolute;top:calc(100% + 4px);left:0;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow-lg);z-index:100;min-width:170px;padding:4px;display:none}
-.dropdown-menu.open{display:block}
-.dropdown-item{display:flex;align-items:center;gap:8px;padding:7px 12px;font-size:12.5px;color:var(--text);border:none;background:none;width:100%;cursor:pointer;border-radius:4px;font-family:var(--font-sans);text-align:left}
-.dropdown-item:hover{background:var(--accent-light);color:var(--accent)}
-.dropdown-item:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
-.dropdown-item svg{width:14px;height:14px;fill:currentColor;flex-shrink:0}
+/* ───────── Dropdowns ───────── */
+.dd{position:relative;display:inline-flex;flex-shrink:0}
+.dd-menu{position:absolute;top:calc(100% + 5px);left:0;background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--sh-lg);z-index:200;min-width:175px;padding:4px;display:none;animation:ddIn .12s ease}
+.dd-menu.open{display:block}
+@keyframes ddIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+.dd-item{display:flex;align-items:center;gap:8px;padding:7px 11px;font-size:12.5px;color:var(--text);border:none;background:none;width:100%;cursor:pointer;border-radius:4px;font-family:var(--sans);text-align:left;transition:background .1s}
+.dd-item:hover{background:var(--accent-lt);color:var(--accent)}
+.dd-item:focus-visible{outline:2px solid var(--accent);outline-offset:-2px;border-radius:4px}
+.dd-item svg{width:13px;height:13px;fill:currentColor;flex-shrink:0}
 
-/* ───── Main panels ───── */
+/* ───────── Panels ───────── */
 .main{display:flex;flex:1;overflow:hidden}
-.panel{flex:1;display:flex;flex-direction:column;min-width:0}
+.panel{flex:1;display:flex;flex-direction:column;min-width:0;overflow:hidden}
 .panel+.panel{border-left:1px solid var(--border)}
-.panel-header{display:flex;align-items:center;justify-content:space-between;padding:0 12px;height:34px;background:var(--bg4);border-bottom:1px solid var(--border);flex-shrink:0}
-.panel-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--text3)}
-.panel-actions{display:flex;align-items:center;gap:6px}
-.panel-info{font-size:10.5px;color:var(--text3);font-family:var(--font-mono)}
-.panel-btn{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border:1px solid transparent;border-radius:4px;background:none;color:var(--text3);cursor:pointer;transition:all .15s}
-.panel-btn:hover{background:var(--bg3);color:var(--text);border-color:var(--border)}
-.panel-btn:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
-.panel-btn svg{width:14px;height:14px;fill:currentColor}
+.ph{display:flex;align-items:center;justify-content:space-between;padding:0 10px;height:32px;background:var(--bg4);border-bottom:1px solid var(--border);flex-shrink:0;gap:6px}
+.ph-l{display:flex;align-items:center;gap:6px;overflow:hidden}
+.ph-r{display:flex;align-items:center;gap:4px;flex-shrink:0}
+.ptitle{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--text3);flex-shrink:0}
+.pinfo{font-size:10.5px;color:var(--text3);font-family:var(--mono);white-space:nowrap}
+.pfmt{font-size:10.5px;font-weight:700;color:var(--accent);white-space:nowrap}
+.pbtn{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border:1px solid transparent;border-radius:4px;background:none;color:var(--text3);cursor:pointer;transition:all .13s;flex-shrink:0}
+.pbtn:hover{background:var(--bg3);color:var(--text);border-color:var(--border)}
+.pbtn:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.pbtn svg{width:13px;height:13px;fill:currentColor}
 
-/* ───── Input area ───── */
+/* ───────── View tabs ───────── */
+.vtabs{display:flex}
+.vtab{padding:1px 9px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;border:1px solid var(--border);background:var(--bg2);color:var(--text3);cursor:pointer;font-family:var(--sans);transition:all .13s;height:22px;display:inline-flex;align-items:center}
+.vtab:first-child{border-radius:4px 0 0 4px}
+.vtab:last-child{border-radius:0 4px 4px 0}
+.vtab+.vtab{margin-left:-1px}
+.vtab:hover{color:var(--text)}
+.vtab.active{background:var(--accent);color:var(--accent-tx);border-color:var(--accent);z-index:1;position:relative}
+.vtab:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+
+/* ───────── Search bar (output) ───────── */
+.search-bar{display:flex;align-items:center;gap:4px;padding:4px 8px;background:var(--bg4);border-bottom:1px solid var(--border);flex-shrink:0}
+.search-bar.hidden{display:none}
+.search-input{flex:1;height:26px;padding:0 8px;font-size:12px;font-family:var(--sans);border:1px solid var(--border);border-radius:var(--r);background:var(--bg2);color:var(--text);outline:none}
+.search-input:focus{border-color:var(--accent)}
+.search-count{font-size:11px;color:var(--text3);white-space:nowrap;min-width:52px;text-align:right;font-family:var(--mono)}
+.search-nav{display:flex;gap:2px}
+.search-nav button{width:24px;height:24px;border:1px solid var(--border);border-radius:4px;background:var(--bg2);color:var(--text2);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:12px;transition:background .13s}
+.search-nav button:hover{background:var(--bg3)}
+.search-nav button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.search-nav button:disabled{opacity:.35;cursor:default}
+.search-btn-close{font-size:14px;line-height:1}
+
+/* ───────── Input area ───────── */
+/* THE LINE-NUMBER FIX:
+   Both .gutter and textarea share:
+     font-family: var(--mono)
+     font-size:   var(--code-size)   = 13px
+     line-height: var(--code-lh)     = 20px  ← explicit px, never unitless
+     padding-top: var(--code-pad)    = 10px
+   Scrollbar on textarea is always-on so width is accounted for.
+*/
 .input-wrap{flex:1;display:flex;overflow:hidden;position:relative}
-.line-numbers{width:44px;flex-shrink:0;padding:10px 6px 10px 0;text-align:right;font-family:var(--font-mono);font-size:12.5px;line-height:1.55;color:var(--text3);background:var(--bg4);border-right:1px solid var(--border);overflow:hidden;user-select:none;white-space:pre}
-.input-wrap textarea{flex:1;padding:10px 12px;font-family:var(--font-mono);font-size:12.5px;line-height:1.55;border:none;background:var(--bg2);color:var(--text);resize:none;outline:none;tab-size:2;white-space:pre;overflow-wrap:normal;overflow-x:auto}
+.gutter{
+  width:42px;flex-shrink:0;overflow:hidden;user-select:none;
+  text-align:right;
+  font-family:var(--mono);font-size:var(--code-size);line-height:var(--code-lh);
+  padding:var(--code-pad) 6px var(--code-pad) 0;
+  color:var(--text3);background:var(--bg4);border-right:1px solid var(--border);
+  white-space:pre; /* preserve \n line breaks */
+}
+.input-wrap textarea{
+  flex:1;
+  font-family:var(--mono);font-size:var(--code-size);line-height:var(--code-lh);
+  padding:var(--code-pad) 12px;
+  border:none;background:var(--bg2);color:var(--text);
+  resize:none;outline:none;
+  tab-size:2;
+  white-space:pre;overflow-wrap:normal;
+  overflow-x:auto;overflow-y:scroll; /* always-on vertical scrollbar for consistent width */
+}
 .input-wrap textarea::placeholder{color:var(--text3)}
 
-/* ───── Drop zone ───── */
-.drop-overlay{position:absolute;inset:0;background:var(--accent-light);border:2px dashed var(--accent);border-radius:8px;display:none;align-items:center;justify-content:center;z-index:10;pointer-events:none}
-.drop-overlay.active{display:flex}
-.drop-overlay span{font-size:14px;font-weight:600;color:var(--accent);padding:20px;text-align:center}
+/* ───────── Drop overlay ───────── */
+.drop-ov{position:absolute;inset:0;background:rgba(67,97,238,.08);border:2px dashed var(--accent);border-radius:6px;display:none;align-items:center;justify-content:center;z-index:20;pointer-events:none}
+.drop-ov.on{display:flex}
+.drop-ov span{font-size:14px;font-weight:600;color:var(--accent);text-align:center}
 
-/* ───── Output area ───── */
-.output-wrap{flex:1;overflow:auto;padding:10px 12px;font-family:var(--font-mono);font-size:12.5px;line-height:1.6;background:var(--bg2);white-space:pre-wrap;word-break:break-all}
-.output-wrap:focus-visible{outline:2px solid var(--accent) inset}
+/* ───────── Output area ───────── */
+.out-wrap{flex:1;overflow:auto;padding:var(--code-pad) 12px;font-family:var(--mono);font-size:var(--code-size);line-height:var(--code-lh);background:var(--bg2);white-space:pre-wrap;word-break:break-all;position:relative}
+.out-wrap:focus-visible{outline:2px solid var(--accent) inset}
 
-/* ───── Output view tabs ───── */
-.view-tabs{display:flex;gap:0;margin-left:8px}
-.view-tab{padding:2px 10px;font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;border:1px solid var(--border);background:var(--bg2);color:var(--text3);cursor:pointer;transition:all .15s;font-family:var(--font-sans)}
-.view-tab:first-child{border-radius:4px 0 0 4px}
-.view-tab:last-child{border-radius:0 4px 4px 0}
-.view-tab+.view-tab{margin-left:-1px}
-.view-tab:hover{color:var(--text)}
-.view-tab.active{background:var(--accent);color:var(--accent-text);border-color:var(--accent);z-index:1;position:relative}
-.view-tab:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+/* Code view = output WITH line numbers */
+.code-view-wrap{flex:1;display:flex;overflow:hidden}
+.out-gutter{
+  width:42px;flex-shrink:0;overflow:hidden;user-select:none;
+  text-align:right;
+  font-family:var(--mono);font-size:var(--code-size);line-height:var(--code-lh);
+  padding:var(--code-pad) 6px var(--code-pad) 0;
+  color:var(--text3);background:var(--bg4);border-right:1px solid var(--border);
+  white-space:pre;
+}
+.out-code{flex:1;overflow:auto;padding:var(--code-pad) 12px;font-family:var(--mono);font-size:var(--code-size);line-height:var(--code-lh);background:var(--bg2);white-space:pre-wrap;word-break:break-all}
+/* sync gutter scroll with out-code */
 
-/* ───── Error display ───── */
-.error-msg{color:var(--danger);padding:16px;font-family:var(--font-mono);font-size:12.5px;line-height:1.6;white-space:pre-wrap}
-.error-msg .error-title{font-size:13px;font-weight:700;margin-bottom:6px;display:flex;align-items:center;gap:6px}
-.error-msg .error-detail{color:var(--text2);font-weight:400;margin-top:4px;font-size:12px}
-.error-msg .error-line{background:var(--danger-light);border-left:3px solid var(--danger);padding:8px 12px;margin-top:8px;border-radius:0 4px 4px 0;font-size:12px;color:var(--text)}
+/* Form view */
+.form-view{flex:1;overflow:auto;background:var(--bg2);padding:8px 0}
+.fv-row{display:flex;align-items:baseline;padding:3px 14px;gap:10px;border-bottom:1px solid transparent}
+.fv-row:hover{background:var(--bg4)}
+.fv-indent{display:inline-block;width:0px} /* set via JS style.width */
+.fv-expand{width:16px;height:16px;border:none;background:none;cursor:pointer;color:var(--text3);font-size:10px;padding:0;flex-shrink:0;line-height:1;font-family:var(--mono)}
+.fv-expand:hover{color:var(--accent)}
+.fv-expand:focus-visible{outline:2px solid var(--accent);outline-offset:1px;border-radius:2px}
+.fv-key{font-family:var(--mono);font-size:12.5px;color:var(--key);font-weight:500;flex-shrink:0;cursor:default}
+.fv-type{font-size:10px;color:var(--text3);background:var(--bg3);border-radius:3px;padding:1px 5px;flex-shrink:0;font-family:var(--sans)}
+.fv-val{font-family:var(--mono);font-size:12.5px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
+.fv-val.fv-str{color:var(--str)}.fv-val.fv-num{color:var(--num)}
+.fv-val.fv-bool-t{color:var(--bool)}.fv-val.fv-bool-f{color:var(--bool)}
+.fv-val.fv-null{color:var(--null-c)}
+.fv-chip{font-size:10px;padding:1px 5px;border-radius:10px;font-family:var(--sans);flex-shrink:0}
+.fv-chip-t{background:rgba(46,158,68,.15);color:var(--success)}
+.fv-chip-f{background:rgba(224,49,49,.12);color:var(--danger)}
 
-/* ───── Syntax highlighting ───── */
-.s-key{color:var(--key)}.s-str{color:var(--str)}.s-num{color:var(--num)}.s-bool{color:var(--bool)}.s-null{color:var(--null-color)}
-.s-bracket{color:var(--text)}
+/* ───────── Error display ───────── */
+.err-box{color:var(--danger);padding:14px 16px;font-family:var(--mono);font-size:12.5px;line-height:1.6;white-space:pre-wrap}
+.err-ttl{font-size:13px;font-weight:700;margin-bottom:6px;display:flex;align-items:center;gap:6px;font-family:var(--sans)}
+.err-sub{color:var(--text2);font-weight:400;margin-top:4px;font-size:12px;font-family:var(--sans)}
+.err-ln{background:var(--danger-lt);border-left:3px solid var(--danger);padding:7px 12px;margin-top:8px;border-radius:0 4px 4px 0;font-size:12px;color:var(--text)}
 
-/* ───── XML/YAML/CSV highlighting ───── */
-.x-tag{color:var(--danger)}.x-attr{color:var(--bool)}.x-val{color:var(--str)}.x-cdata{color:var(--text2)}
-.y-key{color:var(--key)}.y-str{color:var(--str)}.y-num{color:var(--num)}.y-bool{color:var(--bool)}.y-null{color:var(--null-color)}.y-dash{color:var(--danger)}
+/* ───────── Syntax colours ───────── */
+.sk{color:var(--key)} .ss{color:var(--str)} .sn{color:var(--num)}
+.sb{color:var(--bool)} .snu{color:var(--null-c)} .sbr{color:var(--text)}
 
-/* ───── Collapsible tree ───── */
+/* XML */
+.xt{color:var(--danger)} .xa{color:var(--bool)} .xv{color:var(--str)}
+/* YAML */
+.yk{color:var(--key)} .ys{color:var(--str)} .yn{color:var(--num)}
+.yb{color:var(--bool)} .ynu{color:var(--null-c)} .yd{color:var(--danger)}
+
+/* ───────── Search highlights ───────── */
+mark.sh{background:#ffe08a;color:#1a1d23;border-radius:2px}
+mark.sh.sh-cur{background:#f08c00;color:#fff}
+[data-theme="dark"] mark.sh{background:#665200;color:#ffd43b}
+[data-theme="dark"] mark.sh.sh-cur{background:#f08c00;color:#fff}
+
+/* ───────── Collapsible tree ───────── */
 .coll{position:relative;display:inline}
-.coll-toggle{display:inline-block;width:16px;text-align:center;cursor:pointer;color:var(--text3);user-select:none;font-size:10px;vertical-align:middle;border:none;background:none;padding:0;font-family:var(--font-mono);line-height:1.6;transition:color .15s}
-.coll-toggle:hover{color:var(--accent)}
-.coll-toggle:focus-visible{outline:2px solid var(--accent);outline-offset:1px;border-radius:2px}
-.coll.collapsed .coll-content{display:none}
-.coll-summary{display:none;color:var(--text3);font-style:italic;font-size:11.5px}
-.coll.collapsed .coll-summary{display:inline}
+.coll-tog{display:inline-block;width:15px;text-align:center;cursor:pointer;color:var(--text3);user-select:none;font-size:9px;vertical-align:middle;border:none;background:none;padding:0;font-family:var(--mono);line-height:var(--code-lh);transition:color .12s}
+.coll-tog:hover{color:var(--accent)}
+.coll-tog:focus-visible{outline:2px solid var(--accent);outline-offset:1px;border-radius:2px}
+.coll.cls .coll-body{display:none}
+.coll-sum{display:none;color:var(--text3);font-style:italic;font-size:11.5px}
+.coll.cls .coll-sum{display:inline}
 
-/* ───── Toast ───── */
-.toast{position:fixed;top:16px;right:16px;padding:10px 18px;border-radius:var(--radius);font-size:13px;font-weight:500;color:#fff;background:var(--success);box-shadow:var(--shadow-lg);opacity:0;transform:translateY(-10px);transition:opacity .25s,transform .25s;pointer-events:none;z-index:1000;display:flex;align-items:center;gap:6px}
-.toast svg{width:14px;height:14px;fill:currentColor;flex-shrink:0}
-.toast.show{opacity:1;transform:translateY(0)}
+/* ───────── Toast ───────── */
+.toast{position:fixed;top:14px;right:14px;padding:9px 16px;border-radius:var(--r);font-size:12.5px;font-weight:500;color:#fff;background:var(--success);box-shadow:var(--sh-lg);opacity:0;transform:translateY(-8px);transition:opacity .22s,transform .22s;pointer-events:none;z-index:1000;display:flex;align-items:center;gap:6px;max-width:320px}
+.toast svg{width:13px;height:13px;fill:currentColor;flex-shrink:0}
+.toast.show{opacity:1;transform:none}
 
-/* ───── Upload modal ───── */
-.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:200;display:none;align-items:center;justify-content:center}
-.modal-overlay.open{display:flex}
-.modal{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-lg);box-shadow:var(--shadow-lg);padding:28px;width:440px;max-width:90vw}
-.modal h2{font-size:16px;font-weight:700;margin-bottom:4px}
-.modal p{font-size:13px;color:var(--text2);margin-bottom:18px}
-.upload-zone{border:2px dashed var(--border2);border-radius:var(--radius-lg);padding:36px 20px;text-align:center;cursor:pointer;transition:all .2s;background:var(--bg4)}
-.upload-zone:hover,.upload-zone.drag-over{border-color:var(--accent);background:var(--accent-light)}
-.upload-zone svg{width:36px;height:36px;fill:var(--text3);margin-bottom:10px}
-.upload-zone .uz-title{font-size:14px;font-weight:600;color:var(--text);margin-bottom:4px}
-.upload-zone .uz-sub{font-size:12px;color:var(--text3)}
-.upload-zone input{display:none}
-.modal-footer{display:flex;justify-content:flex-end;gap:8px;margin-top:18px}
+/* ───────── Upload modal ───────── */
+.modal-ov{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:300;display:none;align-items:center;justify-content:center}
+.modal-ov.open{display:flex}
+.modal{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r-lg);box-shadow:var(--sh-lg);padding:26px;width:430px;max-width:92vw;animation:mIn .15s ease}
+@keyframes mIn{from{opacity:0;transform:scale(.96)}to{opacity:1;transform:none}}
+.modal h2{font-size:15px;font-weight:700;margin-bottom:3px}
+.modal p{font-size:12.5px;color:var(--text2);margin-bottom:16px}
+.uz{border:2px dashed var(--border2);border-radius:var(--r-lg);padding:32px 20px;text-align:center;cursor:pointer;transition:all .18s;background:var(--bg4)}
+.uz:hover,.uz.drag{border-color:var(--accent);background:var(--accent-lt)}
+.uz svg{width:34px;height:34px;fill:var(--text3);margin-bottom:8px}
+.uz-t{font-size:13.5px;font-weight:600;color:var(--text);margin-bottom:3px}
+.uz-s{font-size:11.5px;color:var(--text3)}
+.uz input[type=file]{display:none}
+.modal-ft{display:flex;justify-content:flex-end;gap:8px;margin-top:16px}
 
-/* ───── Responsive ───── */
-@media(max-width:700px){
+/* ───────── Diff mode ───────── */
+.diff-area{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.diff-inputs{display:flex;height:210px;flex-shrink:0;border-bottom:1px solid var(--border)}
+.diff-inp-panel{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
+.diff-inp-panel+.diff-inp-panel{border-left:1px solid var(--border)}
+.diff-inp-hdr{display:flex;align-items:center;justify-content:space-between;padding:0 10px;height:32px;background:var(--bg4);border-bottom:1px solid var(--border);flex-shrink:0;gap:6px}
+.diff-ctrl{display:flex;align-items:center;gap:6px;padding:0 14px;height:44px;background:var(--bg2);border-bottom:1px solid var(--border);flex-shrink:0;overflow-x:auto}
+.diff-ctrl::-webkit-scrollbar{display:none}
+.diff-out-wrap{flex:1;overflow:auto;background:var(--bg2);font-family:var(--mono);font-size:var(--code-size);line-height:var(--code-lh)}
+.diff-stats{font-size:11.5px;font-family:var(--mono);white-space:nowrap;margin-left:auto;padding-left:8px}
+.diff-stat-add{color:var(--success)}
+.diff-stat-del{color:var(--danger)}
+/* view toggle */
+.dvtabs{display:flex}
+.dvtab{padding:0 10px;height:28px;font-size:11px;font-weight:700;font-family:var(--sans);border:1px solid var(--border);background:var(--bg2);color:var(--text2);cursor:pointer;transition:all .13s;display:inline-flex;align-items:center;text-transform:uppercase;letter-spacing:.3px}
+.dvtab:first-child{border-radius:4px 0 0 4px}
+.dvtab:last-child{border-radius:0 4px 4px 0;margin-left:-1px}
+.dvtab.active{background:var(--accent);color:var(--accent-tx);border-color:var(--accent);z-index:1;position:relative}
+.dvtab:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+/* diff lines */
+.dl{display:flex;min-height:var(--code-lh);word-break:break-all;font-size:var(--code-size);line-height:var(--code-lh)}
+.dl-ln{min-width:38px;max-width:38px;text-align:right;padding:0 5px;color:var(--text3);background:var(--bg4);border-right:1px solid var(--border);user-select:none;font-size:11px;flex-shrink:0;line-height:var(--code-lh)}
+.dl-sign{width:18px;min-width:18px;text-align:center;font-weight:700;flex-shrink:0;line-height:var(--code-lh)}
+.dl-text{flex:1;padding:0 8px;word-break:break-all;min-width:0;line-height:var(--code-lh);white-space:pre-wrap}
+.dl-hdr{background:var(--accent-lt);color:var(--accent);font-family:var(--mono);font-size:var(--code-size);padding:2px 10px;white-space:pre;display:block;line-height:var(--code-lh)}
+.dl-del{background:#fff0f0}.dl-del .dl-ln{background:#ffe0e0;border-right-color:#ffb3b3}.dl-del .dl-sign{color:var(--danger)}
+.dl-ins{background:#f0fff4}.dl-ins .dl-ln{background:#d0f0dc;border-right-color:#8debb3}.dl-ins .dl-sign{color:var(--success)}
+.dl-ctx .dl-sign{color:var(--text3);font-weight:400}
+[data-theme="dark"] .dl-del{background:#2d1a1a}[data-theme="dark"] .dl-del .dl-ln{background:#3d2020;border-right-color:#6b2020}
+[data-theme="dark"] .dl-ins{background:#1a2d1e}[data-theme="dark"] .dl-ins .dl-ln{background:#1e3828;border-right-color:#2a6040}
+[data-theme="dark"] .dl-hdr{background:var(--accent-lt)}
+/* char-level highlights */
+.ci-del{background:#ffb3b3;border-radius:2px}
+.ci-ins{background:#6bdb8c;border-radius:2px}
+[data-theme="dark"] .ci-del{background:#7a2020}
+[data-theme="dark"] .ci-ins{background:#1a6030}
+/* split view */
+.diff-split-hdr-row{display:flex;background:var(--bg4);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:10}
+.diff-split-side-hdr{flex:1;padding:3px 10px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--text3)}
+.diff-split-side-hdr+.diff-split-side-hdr{border-left:2px solid var(--border2)}
+.diff-split-chunk-hdr{width:100%;display:block;background:var(--accent-lt);color:var(--accent);padding:2px 10px;font-family:var(--mono);font-size:var(--code-size);line-height:var(--code-lh)}
+.diff-split-row{display:flex}
+.diff-split-row > .dl{flex:1;min-width:0}
+.diff-split-row > .dl+.dl{border-left:2px solid var(--border2)}
+.diff-empty{flex:1;min-height:var(--code-lh);background:var(--bg3);border-right:1px solid var(--border)}
+[data-theme="dark"] .diff-empty{background:var(--bg4)}
+
+/* ───────── Responsive ───────── */
+@media(max-width:680px){
   .main{flex-direction:column}
   .panel+.panel{border-left:none;border-top:1px solid var(--border)}
   .badge{display:none}
-  .shortcut-hint{display:none}
+  .kbd{display:none}
 }
 </style>
 </head>
 <body>
 
-<!-- Header -->
-<div class="header">
-  <div class="header-left">
-    <div class="logo">
-      <div class="logo-icon"><svg viewBox="0 0 16 16"><path d="M4 1.5A1.5 1.5 0 0 0 2.5 3v10A1.5 1.5 0 0 0 4 14.5h8a1.5 1.5 0 0 0 1.5-1.5V5.621a1.5 1.5 0 0 0-.44-1.06L10.44 1.94A1.5 1.5 0 0 0 9.378 1.5H4zM5 7h6v1.2H5V7zm0 2.5h4v1.2H5V9.5z"/></svg></div>
-      <h1>JSON Formatter <span>&amp; Converter</span></h1>
+<!-- ═══ Header ═══ -->
+<div class="hdr">
+  <div class="logo">
+    <div class="logo-icon">
+      <svg viewBox="0 0 16 16"><path d="M4 1.5A1.5 1.5 0 0 0 2.5 3v10A1.5 1.5 0 0 0 4 14.5h8a1.5 1.5 0 0 0 1.5-1.5V5.621a1.5 1.5 0 0 0-.44-1.06L10.44 1.94A1.5 1.5 0 0 0 9.378 1.5H4zM5 6.5h6v1.2H5V6.5zm0 2.5h4v1.2H5V9z"/></svg>
     </div>
+    <h1>JSON Formatter <span>&amp; Converter</span></h1>
   </div>
-  <div class="header-right">
+  <div class="hdr-r">
     <span class="badge">
       <svg viewBox="0 0 16 16"><path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm3.7 5.7-4 4a1 1 0 0 1-1.4 0l-2-2a1 1 0 1 1 1.4-1.4L7 8.58l3.3-3.3a1 1 0 0 1 1.4 1.42z"/></svg>
-      100% local &mdash; your data never leaves this browser
+      100% local &mdash; data never leaves your browser
     </span>
-    <div class="theme-icons">
-      <svg viewBox="0 0 16 16"><path d="M8 1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-1 0v-1A.5.5 0 0 1 8 1zm0 11a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-1 0v-1A.5.5 0 0 1 8 12zm7-4a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1 0-1h1a.5.5 0 0 1 .5.5zM3 8a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1 0-1h1A.5.5 0 0 1 3 8zm.354-4.646a.5.5 0 0 1 .707 0l.708.708a.5.5 0 1 1-.708.707l-.707-.708a.5.5 0 0 1 0-.707zm9.292 9.292a.5.5 0 0 1 .707 0l.708.708a.5.5 0 0 1-.708.707l-.707-.708a.5.5 0 0 1 0-.707zM8 4a4 4 0 1 0 0 8 4 4 0 0 0 0-8z"/></svg>
+    <div class="theme-wrap">
+      <svg viewBox="0 0 16 16" title="Light"><circle cx="8" cy="8" r="3.5"/><path d="M8 1v1.5M8 13.5V15M1 8h1.5M13.5 8H15M3.05 3.05l1.06 1.06M11.89 11.89l1.06 1.06M3.05 12.95l1.06-1.06M11.89 4.11l1.06-1.06" stroke="currentColor" stroke-width="1.2" fill="none" stroke-linecap="round"/></svg>
+      <button class="tog" id="togTheme" role="switch" aria-checked="false" aria-label="Toggle dark mode" title="Toggle dark mode"></button>
+      <svg viewBox="0 0 16 16" title="Dark"><path d="M6 .278a.768.768 0 0 1 .08.858 7.208 7.208 0 0 0-.878 3.46c0 4.021 3.278 7.277 7.318 7.277.527 0 1.04-.055 1.533-.16a.787.787 0 0 1 .81.316.733.733 0 0 1-.031.893A8.349 8.349 0 0 1 8.344 16C3.734 16 0 12.286 0 7.71 0 4.266 2.114 1.312 5.124.06A.752.752 0 0 1 6 .278z"/></svg>
     </div>
-    <button class="theme-toggle" id="themeToggle" role="switch" aria-checked="false" aria-label="Toggle dark mode" title="Toggle dark mode"></button>
   </div>
 </div>
 
-<!-- Toolbar -->
-<div class="toolbar" role="toolbar" aria-label="Formatting tools">
-  <button class="btn btn-primary" id="btnFormat" title="Format & Beautify JSON">
-    <svg viewBox="0 0 16 16"><path d="M2 3h12v1.5H2zm0 4h8v1.5H2zm0 4h10v1.5H2z"/></svg>
-    Format
+<!-- ═══ Toolbar ═══ -->
+<div class="tbr" role="toolbar" aria-label="JSON tools">
+  <button class="btn btn-pri" id="btnFormat" title="Format &amp; Beautify (Ctrl+Enter)">
+    <svg viewBox="0 0 16 16"><path d="M2 2.5h12v1.4H2zm0 4h8v1.4H2zm0 4h10v1.4H2z"/></svg>Format
   </button>
-  <button class="btn" id="btnMinify" title="Minify / Compact JSON">
-    <svg viewBox="0 0 16 16"><path d="M2 7.25h12v1.5H2z"/></svg>
-    Minify
+  <button class="btn" id="btnMinify" title="Minify / Compact">
+    <svg viewBox="0 0 16 16"><path d="M2 7.3h12v1.4H2z"/></svg>Minify
   </button>
-  <button class="btn" id="btnValidate" title="Validate JSON syntax">
-    <svg viewBox="0 0 16 16"><path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.75.75 0 0 1 1.06-1.06L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0z"/></svg>
-    Validate
+  <button class="btn" id="btnValidate" title="Validate JSON">
+    <svg viewBox="0 0 16 16"><path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.75.75 0 0 1 1.06-1.06L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0z"/></svg>Validate
   </button>
   <div class="sep"></div>
-  <label>
-    Indent:
-    <select id="indentSelect">
+  <span class="tbr-label">Indent:
+    <select id="indentSel">
       <option value="2" selected>2 spaces</option>
       <option value="3">3 spaces</option>
       <option value="4">4 spaces</option>
       <option value="tab">Tab</option>
     </select>
-  </label>
+  </span>
   <div class="sep"></div>
 
-  <!-- Convert dropdown -->
-  <div class="dropdown" id="convertDropdown">
-    <button class="btn" id="btnConvert" title="Convert JSON to other formats" aria-haspopup="true" aria-expanded="false">
-      <svg viewBox="0 0 16 16"><path d="M1 4.5A.5.5 0 0 1 1.5 4h2.768a.5.5 0 0 1 .354.146l1.06 1.06a.5.5 0 0 0 .354.147H14.5a.5.5 0 0 1 .5.5v6.5a.5.5 0 0 1-.5.5h-13a.5.5 0 0 1-.5-.5v-8z"/></svg>
-      Convert
-      <svg viewBox="0 0 16 16" style="width:10px;height:10px;margin-left:-2px"><path d="M4 6l4 4 4-4z"/></svg>
+  <!-- Convert -->
+  <div class="dd" id="ddConvert">
+    <button class="btn" id="btnConvert" aria-haspopup="true" aria-expanded="false" title="Convert JSON to another format">
+      <svg viewBox="0 0 16 16"><path d="M1 4.5A.5.5 0 0 1 1.5 4H4.27a.5.5 0 0 1 .35.15l1.06 1.06a.5.5 0 0 0 .35.14H14.5a.5.5 0 0 1 .5.5V12a.5.5 0 0 1-.5.5H1.5A.5.5 0 0 1 1 12V4.5z"/></svg>
+      Convert <svg viewBox="0 0 10 6" style="width:9px;height:6px"><path d="M1 1l4 4 4-4" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg>
     </button>
-    <div class="dropdown-menu" id="convertMenu" role="menu">
-      <button class="dropdown-item" role="menuitem" data-format="xml"><svg viewBox="0 0 16 16"><path d="M2.5 2A1.5 1.5 0 0 0 1 3.5v9A1.5 1.5 0 0 0 2.5 14h11a1.5 1.5 0 0 0 1.5-1.5v-9A1.5 1.5 0 0 0 13.5 2h-11zM5 5.3l-2 2.2 2 2.2-.9.8L1.5 7.5 4.1 4.5 5 5.3zm6 0l.9-.8 2.6 3-2.6 3-.9-.8 2-2.2-2-2.2zM8.3 4l1 .3L7.7 11l-1-.3L8.3 4z"/></svg>JSON to XML</button>
-      <button class="dropdown-item" role="menuitem" data-format="yaml"><svg viewBox="0 0 16 16"><path d="M2 3h12v1.2H2zm0 3h8v1.2H2zm0 3h10v1.2H2zm0 3h6v1.2H2z"/></svg>JSON to YAML</button>
-      <button class="dropdown-item" role="menuitem" data-format="csv"><svg viewBox="0 0 16 16"><path d="M2.5 2A1.5 1.5 0 0 0 1 3.5v9A1.5 1.5 0 0 0 2.5 14h11a1.5 1.5 0 0 0 1.5-1.5v-9A1.5 1.5 0 0 0 13.5 2h-11zM2 5h12v1H2V5zm0 3h5v1H2V8zm0 3h5v1H2v-1zm7-3h5v1H9V8zm0 3h5v1H9v-1z"/></svg>JSON to CSV</button>
-      <button class="dropdown-item" role="menuitem" data-format="tsv"><svg viewBox="0 0 16 16"><path d="M2.5 2A1.5 1.5 0 0 0 1 3.5v9A1.5 1.5 0 0 0 2.5 14h11a1.5 1.5 0 0 0 1.5-1.5v-9A1.5 1.5 0 0 0 13.5 2h-11zM2 5h12v1H2V5zm0 3h5v1H2V8zm0 3h5v1H2v-1zm7-3h5v1H9V8zm0 3h5v1H9v-1z"/></svg>JSON to TSV</button>
+    <div class="dd-menu" id="menuConvert" role="menu">
+      <button class="dd-item" role="menuitem" data-fmt="xml"><svg viewBox="0 0 16 16"><path d="M2.5 2A1.5 1.5 0 0 0 1 3.5v9A1.5 1.5 0 0 0 2.5 14h11a1.5 1.5 0 0 0 1.5-1.5v-9A1.5 1.5 0 0 0 13.5 2h-11zM5 5.3l-2 2.2 2 2.2-.9.8L1.5 7.5 4.1 4.5 5 5.3zm6 0 .9-.8 2.6 3-2.6 3-.9-.8 2-2.2-2-2.2zM8.3 4l1 .3L7.7 11l-1-.3L8.3 4z"/></svg> JSON to XML</button>
+      <button class="dd-item" role="menuitem" data-fmt="yaml"><svg viewBox="0 0 16 16"><path d="M2 3h12v1.2H2zm0 3h8v1.2H2zm0 3h10v1.2H2zm0 3h6v1.2H2z"/></svg> JSON to YAML</button>
+      <button class="dd-item" role="menuitem" data-fmt="csv"><svg viewBox="0 0 16 16"><path d="M2.5 2A1.5 1.5 0 0 0 1 3.5v9A1.5 1.5 0 0 0 2.5 14h11a1.5 1.5 0 0 0 1.5-1.5v-9A1.5 1.5 0 0 0 13.5 2h-11zM2 5h12v1H2V5zm0 3h5v1H2V8zm0 3h5v1H2v-1zm7-3h5v1H9V8zm0 3h5v1H9v-1z"/></svg> JSON to CSV</button>
+      <button class="dd-item" role="menuitem" data-fmt="tsv"><svg viewBox="0 0 16 16"><path d="M2.5 2A1.5 1.5 0 0 0 1 3.5v9A1.5 1.5 0 0 0 2.5 14h11a1.5 1.5 0 0 0 1.5-1.5v-9A1.5 1.5 0 0 0 13.5 2h-11zM2 5h12v1H2V5zm0 3h5v1H2V8zm0 3h5v1H2v-1zm7-3h5v1H9V8zm0 3h5v1H9v-1z"/></svg> JSON to TSV</button>
     </div>
   </div>
 
-  <!-- Download dropdown -->
-  <div class="dropdown" id="downloadDropdown">
-    <button class="btn btn-success" id="btnDownload" title="Download output" aria-haspopup="true" aria-expanded="false">
-      <svg viewBox="0 0 16 16"><path d="M8 1a.5.5 0 0 1 .5.5v8.793l2.146-2.147a.5.5 0 0 1 .708.708l-3 3a.5.5 0 0 1-.708 0l-3-3a.5.5 0 1 1 .708-.708L7.5 10.293V1.5A.5.5 0 0 1 8 1zM2 13.5a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 0 1h-11a.5.5 0 0 1-.5-.5z"/></svg>
-      Download
-      <svg viewBox="0 0 16 16" style="width:10px;height:10px;margin-left:-2px"><path d="M4 6l4 4 4-4z"/></svg>
+  <!-- Download -->
+  <div class="dd" id="ddDownload">
+    <button class="btn btn-ok" id="btnDownload" aria-haspopup="true" aria-expanded="false" title="Download output file">
+      <svg viewBox="0 0 16 16"><path d="M8 1a.5.5 0 0 1 .5.5v8.79l2.15-2.15a.5.5 0 0 1 .7.71l-3 3a.5.5 0 0 1-.7 0l-3-3a.5.5 0 1 1 .7-.71L7.5 10.29V1.5A.5.5 0 0 1 8 1zM2 13.5a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 0 1h-11a.5.5 0 0 1-.5-.5z"/></svg>
+      Download <svg viewBox="0 0 10 6" style="width:9px;height:6px"><path d="M1 1l4 4 4-4" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg>
     </button>
-    <div class="dropdown-menu" id="downloadMenu" role="menu">
-      <button class="dropdown-item" role="menuitem" data-dl="json"><svg viewBox="0 0 16 16"><path d="M4 1.5A1.5 1.5 0 0 0 2.5 3v10A1.5 1.5 0 0 0 4 14.5h8a1.5 1.5 0 0 0 1.5-1.5V5.621a1.5 1.5 0 0 0-.44-1.06L10.44 1.94A1.5 1.5 0 0 0 9.378 1.5H4z"/></svg>Download as .json</button>
-      <button class="dropdown-item" role="menuitem" data-dl="xml"><svg viewBox="0 0 16 16"><path d="M4 1.5A1.5 1.5 0 0 0 2.5 3v10A1.5 1.5 0 0 0 4 14.5h8a1.5 1.5 0 0 0 1.5-1.5V5.621a1.5 1.5 0 0 0-.44-1.06L10.44 1.94A1.5 1.5 0 0 0 9.378 1.5H4z"/></svg>Download as .xml</button>
-      <button class="dropdown-item" role="menuitem" data-dl="yaml"><svg viewBox="0 0 16 16"><path d="M4 1.5A1.5 1.5 0 0 0 2.5 3v10A1.5 1.5 0 0 0 4 14.5h8a1.5 1.5 0 0 0 1.5-1.5V5.621a1.5 1.5 0 0 0-.44-1.06L10.44 1.94A1.5 1.5 0 0 0 9.378 1.5H4z"/></svg>Download as .yaml</button>
-      <button class="dropdown-item" role="menuitem" data-dl="csv"><svg viewBox="0 0 16 16"><path d="M4 1.5A1.5 1.5 0 0 0 2.5 3v10A1.5 1.5 0 0 0 4 14.5h8a1.5 1.5 0 0 0 1.5-1.5V5.621a1.5 1.5 0 0 0-.44-1.06L10.44 1.94A1.5 1.5 0 0 0 9.378 1.5H4z"/></svg>Download as .csv</button>
-      <button class="dropdown-item" role="menuitem" data-dl="tsv"><svg viewBox="0 0 16 16"><path d="M4 1.5A1.5 1.5 0 0 0 2.5 3v10A1.5 1.5 0 0 0 4 14.5h8a1.5 1.5 0 0 0 1.5-1.5V5.621a1.5 1.5 0 0 0-.44-1.06L10.44 1.94A1.5 1.5 0 0 0 9.378 1.5H4z"/></svg>Download as .tsv</button>
+    <div class="dd-menu" id="menuDownload" role="menu">
+      <button class="dd-item" role="menuitem" data-dl="json"><svg viewBox="0 0 16 16"><path d="M4 1.5A1.5 1.5 0 0 0 2.5 3v10A1.5 1.5 0 0 0 4 14.5h8a1.5 1.5 0 0 0 1.5-1.5V5.62a1.5 1.5 0 0 0-.44-1.06L10.44 1.94A1.5 1.5 0 0 0 9.38 1.5H4z"/></svg> Download as .json</button>
+      <button class="dd-item" role="menuitem" data-dl="xml"><svg viewBox="0 0 16 16"><path d="M4 1.5A1.5 1.5 0 0 0 2.5 3v10A1.5 1.5 0 0 0 4 14.5h8a1.5 1.5 0 0 0 1.5-1.5V5.62a1.5 1.5 0 0 0-.44-1.06L10.44 1.94A1.5 1.5 0 0 0 9.38 1.5H4z"/></svg> Download as .xml</button>
+      <button class="dd-item" role="menuitem" data-dl="yaml"><svg viewBox="0 0 16 16"><path d="M4 1.5A1.5 1.5 0 0 0 2.5 3v10A1.5 1.5 0 0 0 4 14.5h8a1.5 1.5 0 0 0 1.5-1.5V5.62a1.5 1.5 0 0 0-.44-1.06L10.44 1.94A1.5 1.5 0 0 0 9.38 1.5H4z"/></svg> Download as .yaml</button>
+      <button class="dd-item" role="menuitem" data-dl="csv"><svg viewBox="0 0 16 16"><path d="M4 1.5A1.5 1.5 0 0 0 2.5 3v10A1.5 1.5 0 0 0 4 14.5h8a1.5 1.5 0 0 0 1.5-1.5V5.62a1.5 1.5 0 0 0-.44-1.06L10.44 1.94A1.5 1.5 0 0 0 9.38 1.5H4z"/></svg> Download as .csv</button>
+      <button class="dd-item" role="menuitem" data-dl="tsv"><svg viewBox="0 0 16 16"><path d="M4 1.5A1.5 1.5 0 0 0 2.5 3v10A1.5 1.5 0 0 0 4 14.5h8a1.5 1.5 0 0 0 1.5-1.5V5.62a1.5 1.5 0 0 0-.44-1.06L10.44 1.94A1.5 1.5 0 0 0 9.38 1.5H4z"/></svg> Download as .tsv</button>
     </div>
   </div>
+
   <div class="sep"></div>
-  <button class="btn" id="btnUpload" title="Upload a JSON file">
-    <svg viewBox="0 0 16 16"><path d="M8 1a.5.5 0 0 1 .5.5v8.793l2.146-2.147a.5.5 0 0 1 .708.708l-3 3a.5.5 0 0 1-.708 0l-3-3a.5.5 0 1 1 .708-.708L7.5 10.293V1.5A.5.5 0 0 1 8 1zM2 13.5a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 0 1h-11a.5.5 0 0 1-.5-.5z" transform="rotate(180 8 8)"/></svg>
-    Upload
+  <button class="btn" id="btnUpload" title="Upload a file">
+    <svg viewBox="0 0 16 16"><path d="M8 1a.5.5 0 0 1 .5.5v8.79l2.15-2.15a.5.5 0 0 1 .7.71l-3 3a.5.5 0 0 1-.7 0l-3-3a.5.5 0 1 1 .7-.71L7.5 10.29V1.5A.5.5 0 0 1 8 1zM2 13.5a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 0 1h-11a.5.5 0 0 1-.5-.5z" transform="scale(1,-1) translate(0,-16)"/></svg>Upload
   </button>
-  <button class="btn" id="btnToggleAll" title="Expand / Collapse all">
-    <svg viewBox="0 0 16 16"><path d="M2.5 4.5l3.5 3.5-3.5 3.5m5.5-8h5v1.5h-5zm0 3.5h5v1.5h-5zm0 3.5h4v1.5H8z"/></svg>
-    Toggle
+  <button class="btn" id="btnCopy" title="Copy output to clipboard">
+    <svg viewBox="0 0 16 16"><path d="M4 2a2 2 0 0 0-2 2v6h1.5V4a.5.5 0 0 1 .5-.5h5V2H4zm2 3a2 2 0 0 0-2 2v5a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2H6zm-.5 2a.5.5 0 0 1 .5-.5h4a.5.5 0 0 1 .5.5v5a.5.5 0 0 1-.5.5H6a.5.5 0 0 1-.5-.5V7z"/></svg>Copy
   </button>
-  <button class="btn btn-danger" id="btnClear" title="Clear everything">
-    <svg viewBox="0 0 16 16"><path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0V6z"/><path d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1 0-2H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1zM4.118 4L4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4H4.118z"/></svg>
-    Clear
+  <button class="btn" id="btnToggle" title="Expand / Collapse all nodes">
+    <svg viewBox="0 0 16 16"><path d="M2.5 4.5 6 8l-3.5 3.5m5.5-8H14v1.4H8zm0 3.5H14v1.4H8zm0 3.5h5v1.4H8z"/></svg>Toggle
   </button>
-  <span class="shortcut-hint" id="shortcutHint"></span>
+  <button class="btn btn-del" id="btnClear" title="Clear all">
+    <svg viewBox="0 0 16 16"><path d="M5.5 5.5a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0V6z"/><path d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1 0-2H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1zM4.118 4 4 4.06V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.06L11.882 4H4.118z"/></svg>Clear
+  </button>
+  <div class="sep"></div>
+  <button class="btn" id="btnDiff" title="Open diff / compare mode">
+    <svg viewBox="0 0 16 16"><path d="M1 3.5A1.5 1.5 0 0 1 2.5 2h11A1.5 1.5 0 0 1 15 3.5v9a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 1 12.5v-9zM8.5 4v8h5V4h-5zM2.5 4v8H7V4H2.5zM8 6.5l1.5 1.5L8 9.5" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" fill="none"/><line x1="8" y1="4" x2="8" y2="12" stroke="currentColor" stroke-width="1.2"/></svg>
+    Diff
+  </button>
+  <span class="kbd" id="kbdHint"></span>
 </div>
 
-<!-- Main Panels -->
+<!-- ═══ Main area ═══ -->
 <div class="main">
+
   <!-- Input Panel -->
-  <div class="panel" id="inputPanel">
-    <div class="panel-header">
-      <div style="display:flex;align-items:center;gap:8px">
-        <span class="panel-title">Input</span>
+  <div class="panel">
+    <div class="ph">
+      <div class="ph-l">
+        <span class="ptitle">Input</span>
       </div>
-      <div class="panel-actions">
-        <span class="panel-info" id="inputStats">0 chars &middot; 0 bytes</span>
-        <button class="panel-btn" id="btnSample" title="Load sample JSON">
+      <div class="ph-r">
+        <span class="pinfo" id="inStats">0 chars · 0 bytes</span>
+        <button class="pbtn" id="btnSample" title="Load sample JSON" aria-label="Load sample JSON">
           <svg viewBox="0 0 16 16"><path d="M8 2a.5.5 0 0 1 .5.5V7h4.5a.5.5 0 0 1 0 1H8.5v4.5a.5.5 0 0 1-1 0V8H3a.5.5 0 0 1 0-1h4.5V2.5A.5.5 0 0 1 8 2z"/></svg>
         </button>
       </div>
     </div>
-    <div class="input-wrap" id="inputWrap">
-      <div class="drop-overlay" id="dropOverlay"><span>Drop your JSON file here</span></div>
-      <div class="line-numbers" id="lineNumbers" aria-hidden="true">1</div>
-      <textarea id="jsonInput" placeholder="Paste JSON here, upload a file, or drag &amp; drop..." spellcheck="false" autocomplete="off" autocorrect="off" autocapitalize="off"></textarea>
+    <div class="input-wrap" id="inWrap">
+      <div class="drop-ov" id="dropOv"><span>Drop JSON file here</span></div>
+      <div class="gutter" id="gutter" aria-hidden="true">1</div>
+      <textarea id="jInput" placeholder="Paste JSON here, upload a file, or drag &amp; drop…" spellcheck="false" autocomplete="off" autocorrect="off" autocapitalize="off" aria-label="JSON input"></textarea>
     </div>
   </div>
 
   <!-- Output Panel -->
-  <div class="panel" id="outputPanel">
-    <div class="panel-header">
-      <div style="display:flex;align-items:center;gap:8px">
-        <span class="panel-title">Output</span>
-        <div class="view-tabs" id="viewTabs">
-          <button class="view-tab active" data-view="tree" title="Tree View">Tree</button>
-          <button class="view-tab" data-view="raw" title="Raw Text">Raw</button>
+  <div class="panel">
+    <div class="ph">
+      <div class="ph-l">
+        <span class="ptitle">Output</span>
+        <div class="vtabs" id="vtabs" role="tablist">
+          <button class="vtab active" role="tab" aria-selected="true"  data-v="tree">Tree</button>
+          <button class="vtab"        role="tab" aria-selected="false" data-v="code">Code</button>
+          <button class="vtab"        role="tab" aria-selected="false" data-v="form">Form</button>
+          <button class="vtab"        role="tab" aria-selected="false" data-v="raw">Raw</button>
         </div>
       </div>
-      <div class="panel-actions">
-        <span class="panel-info" id="outputStats"></span>
-        <span class="panel-info" id="outputFormat" style="margin-left:4px;font-weight:600;color:var(--accent)"></span>
-        <button class="btn btn-primary" id="btnCopy" title="Copy output to clipboard" style="margin-left:6px;height:26px;padding:2px 10px;font-size:11.5px">
-          <svg viewBox="0 0 16 16" style="width:12px;height:12px"><path d="M4 2a2 2 0 0 0-2 2v6h1.5V4a.5.5 0 0 1 .5-.5h5V2H4zm2 3a2 2 0 0 0-2 2v5a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2H6zm-.5 2a.5.5 0 0 1 .5-.5h4a.5.5 0 0 1 .5.5v5a.5.5 0 0 1-.5.5H6a.5.5 0 0 1-.5-.5V7z"/></svg>
-          Copy
+      <div class="ph-r">
+        <span class="pinfo" id="outStats"></span>
+        <span class="pfmt" id="outFmt"></span>
+        <button class="pbtn" id="btnSearch" title="Search output (Ctrl+F)" aria-label="Search output">
+          <svg viewBox="0 0 16 16"><path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.099zm-5.242 1.156a5.5 5.5 0 1 1 0-11 5.5 5.5 0 0 1 0 11z"/></svg>
         </button>
       </div>
     </div>
-    <div class="output-wrap" id="jsonOutput" tabindex="0" role="region" aria-label="Formatted output"></div>
+
+    <!-- Search bar -->
+    <div class="search-bar hidden" id="searchBar">
+      <input class="search-input" id="searchInput" type="text" placeholder="Search in output…" autocomplete="off" spellcheck="false" aria-label="Search output">
+      <span class="search-count" id="searchCount"></span>
+      <div class="search-nav">
+        <button id="btnSPrev" disabled title="Previous match">&#8593;</button>
+        <button id="btnSNext" disabled title="Next match">&#8595;</button>
+      </div>
+      <button class="pbtn search-btn-close" id="btnSearchClose" title="Close search" aria-label="Close search">&#x2715;</button>
+    </div>
+
+    <!-- Output content (swapped by view mode) -->
+    <div class="out-wrap" id="outMain" tabindex="0" role="region" aria-label="Formatted output"></div>
+    <div class="code-view-wrap" id="outCodeWrap" style="display:none">
+      <div class="out-gutter" id="outGutter" aria-hidden="true"></div>
+      <div class="out-code" id="outCode" tabindex="0"></div>
+    </div>
+    <div class="form-view" id="outForm" style="display:none" role="region" aria-label="Form view"></div>
+  </div>
+</div>
+
+<!-- ═══ Diff Area (hidden until diff mode) ═══ -->
+<div class="diff-area" id="diffArea" style="display:none">
+
+  <!-- Diff controls bar -->
+  <div class="diff-ctrl">
+    <label class="tbr-label" title="Format both inputs as JSON before comparing">
+      <input type="checkbox" id="diffFmtJson" style="accent-color:var(--accent)"> Format JSON
+    </label>
+    <div class="sep"></div>
+    <span class="tbr-label">Context:
+      <select id="diffCtxSel">
+        <option value="3">3 lines</option>
+        <option value="5">5 lines</option>
+        <option value="999">All lines</option>
+      </select>
+    </span>
+    <div class="sep"></div>
+    <div class="dvtabs" role="tablist" aria-label="Diff view">
+      <button class="dvtab active" id="btnDiffUnified" role="tab" aria-selected="true" title="Unified diff view">Unified</button>
+      <button class="dvtab" id="btnDiffSplit" role="tab" aria-selected="false" title="Side-by-side split view">Split</button>
+    </div>
+    <div class="sep"></div>
+    <button class="btn btn-pri" id="btnCompare" title="Run comparison (Ctrl+Enter)">
+      <svg viewBox="0 0 16 16"><path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.099zm-5.242 1.156a5.5 5.5 0 1 1 0-11 5.5 5.5 0 0 1 0 11z"/></svg>
+      Compare
+    </button>
+    <button class="btn" id="btnSwap" title="Swap original and modified">
+      <svg viewBox="0 0 16 16"><path d="M1 11.5a.5.5 0 0 0 .5.5h11.793l-3.147 3.146a.5.5 0 0 0 .708.708l4-4a.5.5 0 0 0 0-.708l-4-4a.5.5 0 0 0-.708.708L13.293 11H1.5a.5.5 0 0 0-.5.5zm14-7a.5.5 0 0 1-.5.5H2.707l3.147 3.146a.5.5 0 1 1-.708.708l-4-4a.5.5 0 0 1 0-.708l4-4a.5.5 0 1 1 .708.708L2.707 4H14.5a.5.5 0 0 1 .5.5z"/></svg>
+      Swap
+    </button>
+    <button class="btn btn-del" id="btnDiffClose" title="Close diff mode">
+      <svg viewBox="0 0 16 16"><path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708z"/></svg>
+      Close
+    </button>
+    <span class="diff-stats" id="diffStats"></span>
+  </div>
+
+  <!-- Two input textareas -->
+  <div class="diff-inputs">
+    <!-- Original -->
+    <div class="diff-inp-panel">
+      <div class="diff-inp-hdr">
+        <span class="ptitle">Original</span>
+        <button class="pbtn" id="btnDiffSampleA" title="Load sample JSON into Original" aria-label="Load sample">
+          <svg viewBox="0 0 16 16"><path d="M8 2a.5.5 0 0 1 .5.5V7h4.5a.5.5 0 0 1 0 1H8.5v4.5a.5.5 0 0 1-1 0V8H3a.5.5 0 0 1 0-1h4.5V2.5A.5.5 0 0 1 8 2z"/></svg>
+        </button>
+      </div>
+      <div class="input-wrap" id="diffInWrapA">
+        <div class="gutter" id="diffGutterA" aria-hidden="true">1</div>
+        <textarea id="diffInputA" placeholder="Paste original text / JSON here…" spellcheck="false" autocomplete="off" autocorrect="off" autocapitalize="off" aria-label="Original input"></textarea>
+      </div>
+    </div>
+    <!-- Modified -->
+    <div class="diff-inp-panel">
+      <div class="diff-inp-hdr">
+        <span class="ptitle">Modified</span>
+        <button class="pbtn" id="btnDiffSampleB" title="Load sample JSON into Modified" aria-label="Load sample">
+          <svg viewBox="0 0 16 16"><path d="M8 2a.5.5 0 0 1 .5.5V7h4.5a.5.5 0 0 1 0 1H8.5v4.5a.5.5 0 0 1-1 0V8H3a.5.5 0 0 1 0-1h4.5V2.5A.5.5 0 0 1 8 2z"/></svg>
+        </button>
+      </div>
+      <div class="input-wrap" id="diffInWrapB">
+        <div class="gutter" id="diffGutterB" aria-hidden="true">1</div>
+        <textarea id="diffInputB" placeholder="Paste modified text / JSON here…" spellcheck="false" autocomplete="off" autocorrect="off" autocapitalize="off" aria-label="Modified input"></textarea>
+      </div>
+    </div>
+  </div>
+
+  <!-- Diff output -->
+  <div class="diff-out-wrap" id="diffOut">
+    <div class="diff-ph">
+      <svg width="40" height="40" viewBox="0 0 16 16" fill="currentColor" style="opacity:.2;display:block;margin:0 auto 10px"><path d="M1 3.5A1.5 1.5 0 0 1 2.5 2h11A1.5 1.5 0 0 1 15 3.5v9a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 1 12.5v-9z"/></svg>
+      <div style="font-size:13px;font-weight:600;color:var(--text2)">Paste text in both panels and click Compare</div>
+      <div style="font-size:11.5px;margin-top:5px">Supports any text &nbsp;•&nbsp; Enable "Format JSON" to pretty-print before diffing</div>
+    </div>
   </div>
 </div>
 
 <!-- Upload Modal -->
-<div class="modal-overlay" id="uploadModal">
-  <div class="modal" role="dialog" aria-label="Upload JSON file">
+<div class="modal-ov" id="modalUpload" role="dialog" aria-label="Upload file" aria-modal="true">
+  <div class="modal">
     <h2>Upload File</h2>
-    <p>Select a JSON, XML, YAML, or CSV file to load into the editor.</p>
-    <div class="upload-zone" id="uploadZone">
-      <svg viewBox="0 0 48 48"><path d="M24 4l-8 8h5v12h6V12h5L24 4zM8 34v6c0 2.2 1.8 4 4 4h24c2.2 0 4-1.8 4-4v-6H8z"/></svg>
-      <div class="uz-title">Click to browse or drag a file here</div>
-      <div class="uz-sub">.json &middot; .xml &middot; .yaml &middot; .yml &middot; .csv &middot; .tsv &middot; .txt</div>
+    <p>Select a JSON file (or XML, YAML, CSV, TSV, TXT) to load into the input editor.</p>
+    <div class="uz" id="uploadZone">
+      <svg viewBox="0 0 48 48"><path d="M24 4 16 12h5v14h6V12h5L24 4zM8 36v4c0 2.2 1.8 4 4 4h24c2.2 0 4-1.8 4-4v-4H8z"/></svg>
+      <div class="uz-t">Click to browse or drag a file here</div>
+      <div class="uz-s">.json &middot; .xml &middot; .yaml &middot; .yml &middot; .csv &middot; .tsv &middot; .txt</div>
       <input type="file" id="fileInput" accept=".json,.xml,.yaml,.yml,.csv,.tsv,.txt,application/json,text/xml,text/yaml,text/csv,text/plain">
     </div>
-    <div class="modal-footer">
+    <div class="modal-ft">
       <button class="btn" id="btnCloseModal">Cancel</button>
     </div>
   </div>
 </div>
 
 <!-- Toast -->
-<div class="toast" id="toast"></div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <script>
 (function(){
-  "use strict";
+"use strict";
 
-  /* ═══════════ DOM refs ═══════════ */
-  var input       = document.getElementById("jsonInput");
-  var output      = document.getElementById("jsonOutput");
-  var lineNums    = document.getElementById("lineNumbers");
-  var inputStats  = document.getElementById("inputStats");
-  var outputStats = document.getElementById("outputStats");
-  var outputFmt   = document.getElementById("outputFormat");
-  var indentSelect= document.getElementById("indentSelect");
-  var toastEl     = document.getElementById("toast");
-  var shortcutHint= document.getElementById("shortcutHint");
-  var dropOverlay = document.getElementById("dropOverlay");
-  var inputWrap   = document.getElementById("inputWrap");
+/* ═══════════════════════════════════════════
+   DOM refs
+═══════════════════════════════════════════ */
+var jInput     = document.getElementById("jInput");
+var gutter     = document.getElementById("gutter");
+var inWrap     = document.getElementById("inWrap");
+var dropOv     = document.getElementById("dropOv");
+var inStats    = document.getElementById("inStats");
 
-  var allCollapsed      = false;
-  var lastOutputText    = "";
-  var lastOutputFormat  = "json";
-  var currentView       = "tree";
-  var parsedData        = null;
+var outMain    = document.getElementById("outMain");
+var outCodeWrap= document.getElementById("outCodeWrap");
+var outGutter  = document.getElementById("outGutter");
+var outCode    = document.getElementById("outCode");
+var outForm    = document.getElementById("outForm");
+var outStats   = document.getElementById("outStats");
+var outFmt     = document.getElementById("outFmt");
 
-  var isMac = /Mac/.test(navigator.platform || navigator.userAgent || "");
-  shortcutHint.textContent = (isMac ? "\u2318" : "Ctrl") + "+Enter to format";
+var searchBar  = document.getElementById("searchBar");
+var searchInput= document.getElementById("searchInput");
+var searchCount= document.getElementById("searchCount");
+var btnSPrev   = document.getElementById("btnSPrev");
+var btnSNext   = document.getElementById("btnSNext");
 
-  /* ═══════════ Theme ═══════════ */
-  document.getElementById("themeToggle").addEventListener("click", function(){
-    var el = document.documentElement;
-    var isDark = el.getAttribute("data-theme") === "dark";
-    el.setAttribute("data-theme", isDark ? "light" : "dark");
-    this.setAttribute("aria-checked", String(!isDark));
-  });
+var indentSel  = document.getElementById("indentSel");
+var toastEl    = document.getElementById("toast");
+var kbdHint    = document.getElementById("kbdHint");
 
-  /* ═══════════ Line numbers ═══════════ */
-  function updateLineNumbers(){
-    var text = input.value;
-    var count = 1;
-    for(var i = 0; i < text.length; i++) if(text.charCodeAt(i) === 10) count++;
-    var arr = [];
-    for(var n = 1; n <= count; n++) arr.push(n);
-    lineNums.textContent = arr.join("\n");
-  }
-  input.addEventListener("scroll", function(){ lineNums.scrollTop = input.scrollTop; });
+/* ── state ── */
+var allCollapsed = false;
+var lastText     = "";        // plain text of last output
+var lastFmt      = "json";    // format label
+var parsedData   = null;      // parsed JS value (json only)
+var currentView  = "tree";    // tree | code | form | raw
+var searchMatches= [];
+var searchIdx    = -1;
 
-  /* ═══════════ Input stats ═══════════ */
-  function updateInputStats(){
-    var t = input.value, c = t.length, b = new Blob([t]).size;
-    inputStats.textContent = c.toLocaleString() + " chars \u00b7 " + b.toLocaleString() + " bytes";
-  }
-  input.addEventListener("input", function(){ updateLineNumbers(); updateInputStats(); });
+/* ── keyboard hint ── */
+var isMac = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent || "");
+kbdHint.textContent = (isMac ? "⌘" : "Ctrl") + "+Enter → format";
 
-  /* ═══════════ Indent change re-formats ═══════════ */
-  indentSelect.addEventListener("change", function(){
-    if(lastOutputFormat === "json" && parsedData !== null){
-      var pretty = JSON.stringify(parsedData, null, getIndentArg());
-      setOutput(pretty, "json", parsedData);
-    }
-  });
+/* ══════════════════════════════════════════
+   THEME
+══════════════════════════════════════════ */
+document.getElementById("togTheme").addEventListener("click", function(){
+  var dark = document.documentElement.getAttribute("data-theme") === "dark";
+  document.documentElement.setAttribute("data-theme", dark ? "light" : "dark");
+  this.setAttribute("aria-checked", String(!dark));
+});
 
-  /* ═══════════ Toast ═══════════ */
-  var toastTimer = null;
-  function showToast(msg, type){
-    var icons = {
-      success: '<svg viewBox="0 0 16 16"><path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm3.7 5.7-4 4a1 1 0 0 1-1.4 0l-2-2a1 1 0 1 1 1.4-1.4L7 8.58l3.3-3.3a1 1 0 0 1 1.4 1.42z"/></svg>',
-      error: '<svg viewBox="0 0 16 16"><path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm-.75 4a.75.75 0 0 1 1.5 0v3a.75.75 0 0 1-1.5 0V5zM8 11.5A.75.75 0 1 1 8 10a.75.75 0 0 1 0 1.5z"/></svg>',
-      info: '<svg viewBox="0 0 16 16"><path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm-.75 4a.75.75 0 0 1 1.5 0v.5a.75.75 0 0 1-1.5 0V5zM6.5 8h1v3.5h1V8h.5v-.8h-2.5V8z"/></svg>'
-    };
-    var colors = { success: "var(--success)", error: "var(--danger)", info: "var(--accent)" };
-    toastEl.innerHTML = (icons[type] || icons.success) + " " + esc(msg);
-    toastEl.style.background = colors[type] || colors.success;
-    toastEl.classList.add("show");
-    if(toastTimer) clearTimeout(toastTimer);
-    toastTimer = setTimeout(function(){ toastEl.classList.remove("show"); }, 2500);
-  }
+/* ══════════════════════════════════════════
+   LINE NUMBERS — the fix
+   Key insight: both .gutter and textarea share
+   identical font-family / font-size / line-height / padding-top
+   via CSS variables, so 1 line in the textarea
+   always equals exactly 1 line in the gutter.
+══════════════════════════════════════════ */
+function updateGutter(){
+  var text = jInput.value;
+  var n = 1;
+  for(var i = 0; i < text.length; i++) if(text.charCodeAt(i) === 10) n++;
+  var out = [];
+  for(var k = 1; k <= n; k++) out.push(k);
+  gutter.textContent = out.join("\n");
+}
 
-  /* ═══════════ Helpers ═══════════ */
-  function esc(s){
-    return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
-  }
-  function parseJSON(text){
-    try{ return { ok:true, value:JSON.parse(text) }; }
-    catch(e){
-      var msg = e.message || "Invalid JSON";
-      var line = null, col = null;
-      var m = msg.match(/position\s+(\d+)/i);
-      if(m){
-        var pos = parseInt(m[1],10); line=1; col=1;
-        for(var i=0;i<pos&&i<text.length;i++){
-          if(text.charCodeAt(i)===10){line++;col=1;}else col++;
-        }
+/* sync gutter scroll with textarea */
+jInput.addEventListener("scroll", function(){ gutter.scrollTop = jInput.scrollTop; });
+
+/* ══════════════════════════════════════════
+   INPUT STATS
+══════════════════════════════════════════ */
+function updateInStats(){
+  var t = jInput.value;
+  inStats.textContent = t.length.toLocaleString() + " chars · " + (new Blob([t]).size).toLocaleString() + " bytes";
+}
+jInput.addEventListener("input", function(){ updateGutter(); updateInStats(); });
+
+/* ══════════════════════════════════════════
+   TOAST
+══════════════════════════════════════════ */
+var toastTmr = null;
+var ICONS = {
+  ok:   '<svg viewBox="0 0 16 16"><path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm3.7 5.7-4 4a1 1 0 0 1-1.4 0l-2-2a1 1 0 1 1 1.4-1.4L7 8.58l3.3-3.3a1 1 0 0 1 1.4 1.42z"/></svg>',
+  err:  '<svg viewBox="0 0 16 16"><path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm-.75 4a.75.75 0 0 1 1.5 0v3a.75.75 0 0 1-1.5 0V5zM8 11.5A.75.75 0 1 1 8 10a.75.75 0 0 1 0 1.5z"/></svg>',
+  info: '<svg viewBox="0 0 16 16"><path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zM7.25 5a.75.75 0 0 1 1.5 0v.5a.75.75 0 0 1-1.5 0V5zm-1 3h1v3.5h1V8h.5v-.8h-2.5V8z"/></svg>'
+};
+function toast(msg, type){
+  type = type || "ok";
+  var bg = {ok:"var(--success)", err:"var(--danger)", info:"var(--accent)"}[type] || "var(--success)";
+  toastEl.innerHTML = (ICONS[type] || "") + esc(msg);
+  toastEl.style.background = bg;
+  toastEl.classList.add("show");
+  if(toastTmr) clearTimeout(toastTmr);
+  toastTmr = setTimeout(function(){ toastEl.classList.remove("show"); }, 2600);
+}
+
+/* ══════════════════════════════════════════
+   UTILITIES
+══════════════════════════════════════════ */
+function esc(s){
+  return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+}
+function parseJSON(text){
+  try{ return {ok:true, val:JSON.parse(text)}; }
+  catch(e){
+    var msg = e.message || "Invalid JSON";
+    var line=null, col=null;
+    var m = msg.match(/position\s+(\d+)/i);
+    if(m){
+      var pos = parseInt(m[1],10); line=1; col=1;
+      for(var i=0;i<pos&&i<text.length;i++){
+        if(text.charCodeAt(i)===10){line++;col=1;}else col++;
       }
-      return { ok:false, message:msg, line:line, col:col };
     }
+    return {ok:false, msg:msg, line:line, col:col};
   }
-  function getIndent(){
-    var v = indentSelect.value;
-    return v === "tab" ? "\t" : " ".repeat(parseInt(v,10));
-  }
-  function getIndentArg(){
-    var v = indentSelect.value;
-    return v === "tab" ? "\t" : parseInt(v,10);
-  }
+}
+function getIndentArg(){
+  var v = indentSel.value;
+  return v==="tab" ? "\t" : parseInt(v,10);
+}
+function getIndentStr(){
+  var v = indentSel.value;
+  return v==="tab" ? "\t" : " ".repeat(parseInt(v,10));
+}
 
-  /* ═══════════ Dropdowns ═══════════ */
-  function setupDropdown(btnId, menuId){
-    var btn = document.getElementById(btnId);
-    var menu = document.getElementById(menuId);
-    btn.addEventListener("click", function(e){
-      e.stopPropagation();
-      closeAllDropdowns();
-      menu.classList.toggle("open");
-      btn.setAttribute("aria-expanded", menu.classList.contains("open"));
+/* ══════════════════════════════════════════
+   DROPDOWNS
+══════════════════════════════════════════ */
+function closeAllDD(){
+  document.querySelectorAll(".dd-menu").forEach(function(m){ m.classList.remove("open"); });
+  document.querySelectorAll(".dd > .btn").forEach(function(b){ b.setAttribute("aria-expanded","false"); });
+}
+function setupDD(btnId, menuId){
+  var btn = document.getElementById(btnId);
+  var menu = document.getElementById(menuId);
+  btn.addEventListener("click", function(e){
+    e.stopPropagation();
+    var was = menu.classList.contains("open");
+    closeAllDD();
+    if(!was){ menu.classList.add("open"); btn.setAttribute("aria-expanded","true"); }
+  });
+}
+document.addEventListener("click", closeAllDD);
+setupDD("btnConvert","menuConvert");
+setupDD("btnDownload","menuDownload");
+
+/* ══════════════════════════════════════════
+   VIEW TABS
+══════════════════════════════════════════ */
+document.querySelectorAll(".vtab").forEach(function(tab){
+  tab.addEventListener("click", function(){
+    document.querySelectorAll(".vtab").forEach(function(t){
+      t.classList.remove("active"); t.setAttribute("aria-selected","false");
+    });
+    this.classList.add("active"); this.setAttribute("aria-selected","true");
+    currentView = this.getAttribute("data-v");
+    renderOutput();
+  });
+});
+
+/* ══════════════════════════════════════════
+   SHOW / HIDE output containers
+══════════════════════════════════════════ */
+function showOutContainer(which){
+  outMain.style.display    = which==="main"  ? "" : "none";
+  outCodeWrap.style.display= which==="code"  ? "" : "none";
+  outForm.style.display    = which==="form"  ? "" : "none";
+}
+
+/* ══════════════════════════════════════════
+   BUILD TREE (collapsible syntax-highlighted)
+══════════════════════════════════════════ */
+function buildTree(val, ind, depth){
+  if(val===null) return '<span class="snu">null</span>';
+  var t = typeof val;
+  if(t==="boolean") return '<span class="sb">'+ val +'</span>';
+  if(t==="number")  return '<span class="sn">'+ val +'</span>';
+  if(t==="string")  return '<span class="ss">"'+ esc(JSON.stringify(val).slice(1,-1)) +'"</span>';
+
+  var isArr = Array.isArray(val);
+  var keys  = isArr ? val : Object.keys(val);
+  var len   = keys.length;
+  var O = isArr?"[":"{", C = isArr?"]":"}";
+
+  if(len===0) return '<span class="sbr">'+O+C+'</span>';
+
+  var pad = ""; for(var d=0;d<=depth;d++) pad+=ind;
+  var ppad = pad.slice(ind.length);
+
+  var noun = isArr ? (len===1?"item":"items") : (len===1?"property":"properties");
+  var html = '<span class="coll">'
+    +'<button class="coll-tog" aria-label="Collapse" aria-expanded="true">▼</button>'
+    +'<span class="sbr">'+O+'</span>'
+    +'<span class="coll-sum"> '+len+' '+noun+' … '+C+'</span>'
+    +'<span class="coll-body">';
+
+  for(var i=0;i<len;i++){
+    html += "\n" + pad;
+    if(isArr){
+      html += buildTree(val[i], ind, depth+1);
+    } else {
+      var k = keys[i];
+      html += '<span class="sk">"'+esc(k)+'"</span>: ';
+      html += buildTree(val[k], ind, depth+1);
+    }
+    if(i<len-1) html += ",";
+  }
+  html += "\n"+ ppad +'<span class="sbr">'+C+'</span></span></span>';
+  return html;
+}
+
+function attachTreeListeners(){
+  outMain.querySelectorAll(".coll-tog").forEach(function(btn){
+    btn.addEventListener("click", function(){
+      var coll = this.parentElement;
+      var cls  = coll.classList.toggle("cls");
+      this.textContent = cls ? "▶" : "▼";
+      this.setAttribute("aria-expanded", String(!cls));
+      this.setAttribute("aria-label", cls?"Expand":"Collapse");
+    });
+  });
+}
+
+/* ══════════════════════════════════════════
+   BUILD CODE view (line-numbered, highlighted)
+══════════════════════════════════════════ */
+function buildCode(text, fmt){
+  var lines = text.split("\n");
+  var nums  = [];
+  for(var i=1;i<=lines.length;i++) nums.push(i);
+  outGutter.textContent = nums.join("\n");
+
+  var highlighted;
+  if(fmt==="json")     highlighted = syntaxJSON(text);
+  else if(fmt==="xml") highlighted = syntaxXML(text);
+  else if(fmt==="yaml")highlighted = syntaxYAML(text);
+  else                 highlighted = esc(text);
+
+  outCode.innerHTML = highlighted;
+  /* sync gutter scroll */
+  outCode.onscroll = function(){ outGutter.scrollTop = outCode.scrollTop; };
+}
+
+/* ══════════════════════════════════════════
+   BUILD FORM view
+══════════════════════════════════════════ */
+function buildForm(val){
+  outForm.innerHTML = "";
+  if(val===null || typeof val!=="object"){
+    var plain = document.createElement("div");
+    plain.className = "fv-row";
+    plain.style.padding = "10px 14px";
+    plain.style.color = "var(--text2)";
+    plain.style.fontSize = "12.5px";
+    plain.textContent = JSON.stringify(val);
+    outForm.appendChild(plain);
+    return;
+  }
+  renderFormNode(val, outForm, 0, null);
+}
+function renderFormNode(val, container, depth, parentKey){
+  if(val===null || typeof val!=="object"){
+    /* primitive — should have been rendered inline */
+    return;
+  }
+  var isArr = Array.isArray(val);
+  var keys  = isArr ? Object.keys(val) : Object.keys(val);
+  for(var i=0;i<keys.length;i++){
+    var k = keys[i];
+    var v = val[k];
+    renderFormRow(k, v, container, depth);
+  }
+}
+function renderFormRow(k, v, container, depth){
+  var row = document.createElement("div");
+  row.className = "fv-row";
+
+  /* indent spacer */
+  var spacer = document.createElement("span");
+  spacer.className = "fv-indent";
+  spacer.style.width = (depth * 16) + "px";
+  spacer.style.display = "inline-block";
+  spacer.style.flexShrink = "0";
+  row.appendChild(spacer);
+
+  /* expand button placeholder */
+  var expBtn = document.createElement("button");
+  expBtn.className = "fv-expand";
+  var isObj = v !== null && typeof v === "object";
+  if(isObj && Object.keys(v).length > 0){
+    expBtn.textContent = "▼";
+    expBtn.title = "Collapse";
+  } else {
+    expBtn.textContent = "";
+    expBtn.style.cursor = "default";
+  }
+  row.appendChild(expBtn);
+
+  /* key */
+  var keyEl = document.createElement("span");
+  keyEl.className = "fv-key";
+  keyEl.textContent = k;
+  row.appendChild(keyEl);
+
+  /* type badge */
+  var typeEl = document.createElement("span");
+  typeEl.className = "fv-type";
+  var tname = v===null?"null":Array.isArray(v)?"array":typeof v;
+  typeEl.textContent = tname;
+  row.appendChild(typeEl);
+
+  /* value */
+  var valEl = document.createElement("span");
+  valEl.className = "fv-val";
+
+  if(v===null){
+    valEl.classList.add("fv-null");
+    valEl.textContent = "null";
+  } else if(typeof v==="boolean"){
+    valEl.classList.add(v?"fv-bool-t":"fv-bool-f");
+    valEl.textContent = String(v);
+    /* chip */
+    var chip = document.createElement("span");
+    chip.className = "fv-chip " + (v?"fv-chip-t":"fv-chip-f");
+    chip.textContent = v ? "true" : "false";
+    row.appendChild(chip);
+  } else if(typeof v==="number"){
+    valEl.classList.add("fv-num");
+    valEl.textContent = String(v);
+  } else if(typeof v==="string"){
+    valEl.classList.add("fv-str");
+    valEl.textContent = '"'+v+'"';
+  } else if(Array.isArray(v)){
+    valEl.style.color = "var(--text3)";
+    valEl.style.fontStyle = "italic";
+    valEl.textContent = "["+v.length+" item"+(v.length!==1?"s":"")+"]";
+  } else {
+    valEl.style.color = "var(--text3)";
+    valEl.style.fontStyle = "italic";
+    valEl.textContent = "{"+Object.keys(v).length+" propert"+(Object.keys(v).length!==1?"ies":"y")+"}";
+  }
+  row.appendChild(valEl);
+  container.appendChild(row);
+
+  /* child rows (initially visible) */
+  if(isObj && Object.keys(v).length > 0){
+    var childWrap = document.createElement("div");
+    childWrap.dataset.childOf = k;
+    renderFormNode(v, childWrap, depth+1, k);
+    container.appendChild(childWrap);
+
+    var expanded = true;
+    expBtn.addEventListener("click", function(){
+      expanded = !expanded;
+      childWrap.style.display = expanded ? "" : "none";
+      expBtn.textContent = expanded ? "▼" : "▶";
+      expBtn.title = expanded ? "Collapse" : "Expand";
     });
   }
-  function closeAllDropdowns(){
-    var menus = document.querySelectorAll(".dropdown-menu");
-    for(var i=0;i<menus.length;i++) menus[i].classList.remove("open");
-    var btns = document.querySelectorAll(".dropdown > .btn");
-    for(var j=0;j<btns.length;j++) btns[j].setAttribute("aria-expanded","false");
-  }
-  document.addEventListener("click", closeAllDropdowns);
-  setupDropdown("btnConvert","convertMenu");
-  setupDropdown("btnDownload","downloadMenu");
+}
 
-  /* ═══════════ View tabs ═══════════ */
-  var viewTabs = document.querySelectorAll(".view-tab");
-  for(var vt=0; vt<viewTabs.length; vt++){
-    viewTabs[vt].addEventListener("click", function(){
-      for(var j=0;j<viewTabs.length;j++) viewTabs[j].classList.remove("active");
-      this.classList.add("active");
-      currentView = this.getAttribute("data-view");
-      refreshOutput();
-    });
-  }
-
-  /* ═══════════ Build tree HTML ═══════════ */
-  function buildTree(val, indentStr, depth){
-    if(val === null) return '<span class="s-null">null</span>';
-    var t = typeof val;
-    if(t === "boolean") return '<span class="s-bool">' + val + '</span>';
-    if(t === "number") return '<span class="s-num">' + val + '</span>';
-    if(t === "string") return '<span class="s-str">"' + esc(JSON.stringify(val).slice(1,-1)) + '"</span>';
-
-    var isArr = Array.isArray(val);
-    var entries = isArr ? val : Object.keys(val);
-    var len = entries.length;
-    var open = isArr ? "[" : "{";
-    var close = isArr ? "]" : "}";
-
-    if(len === 0) return '<span class="s-bracket">' + open + close + '</span>';
-
-    var indent = "";
-    for(var d = 0; d <= depth; d++) indent += indentStr;
-    var parentIndent = indent.substring(indentStr.length);
-
-    var html = '<span class="coll"><button class="coll-toggle" aria-label="Toggle" aria-expanded="true">\u25BC</button>';
-    html += '<span class="s-bracket">' + open + '</span>';
-    html += '<span class="coll-summary"> ' + len + (isArr ? " item" : " propert") + (isArr ? (len!==1?"s":"") : (len!==1?"ies":"y")) + " \u2026 " + close + '</span>';
-    html += '<span class="coll-content">';
-    for(var i = 0; i < len; i++){
-      html += "\n" + indent;
-      if(isArr){
-        html += buildTree(val[i], indentStr, depth+1);
+/* ══════════════════════════════════════════
+   SYNTAX — JSON (code view)
+══════════════════════════════════════════ */
+function syntaxJSON(text){
+  /* tokenise with a single regex pass */
+  return esc(text).replace(
+    /(&quot;(?:[^&]|&amp;|&lt;|&gt;|&quot;)*?&quot;)\s*:/g,
+    '<span class="sk">$1</span>:'
+  ).replace(
+    /:?\s*(&quot;(?:[^&]|&amp;|&lt;|&gt;|&quot;)*?&quot;)/g,
+    function(m, str){ return m.startsWith(":") ? ": <span class=\"ss\">"+ str +"</span>" : m; }
+  );
+  /* simpler fallback — highlight raw pretty-printed JSON */
+}
+/* Better tokeniser for code view */
+function syntaxJSONStr(text){
+  var out = "";
+  var i = 0, len = text.length;
+  while(i < len){
+    var ch = text[i];
+    /* string */
+    if(ch === '"'){
+      var j = i+1;
+      while(j < len){
+        if(text[j]==='\\'){j+=2; continue;}
+        if(text[j]==='"'){j++;break;}
+        j++;
+      }
+      var raw = text.slice(i,j);
+      /* check if followed by colon → key */
+      var after = j;
+      while(after < len && (text[after]===' '||text[after]==='\t')) after++;
+      if(text[after]===':'){
+        out += '<span class="sk">'+ esc(raw) +'</span>';
       } else {
-        var k = entries[i];
-        html += '<span class="s-key">"' + esc(k) + '"</span>: ';
-        html += buildTree(val[k], indentStr, depth+1);
+        out += '<span class="ss">'+ esc(raw) +'</span>';
       }
-      if(i < len-1) html += ",";
+      i = j; continue;
     }
-    html += "\n" + parentIndent + '<span class="s-bracket">' + close + '</span></span></span>';
-    return html;
+    /* number */
+    if(ch==='-' || (ch>='0'&&ch<='9')){
+      var j2=i; if(text[j2]==='-') j2++;
+      while(j2<len && ((text[j2]>='0'&&text[j2]<='9')||text[j2]==='.'||text[j2]==='e'||text[j2]==='E'||text[j2]==='+'||text[j2]==='-')) j2++;
+      out += '<span class="sn">'+ esc(text.slice(i,j2)) +'</span>';
+      i=j2; continue;
+    }
+    /* boolean / null */
+    if(text.slice(i,i+4)==='true'){  out += '<span class="sb">true</span>';  i+=4; continue; }
+    if(text.slice(i,i+5)==='false'){ out += '<span class="sb">false</span>'; i+=5; continue; }
+    if(text.slice(i,i+4)==='null'){  out += '<span class="snu">null</span>';  i+=4; continue; }
+    /* everything else */
+    out += esc(ch); i++;
+  }
+  return out;
+}
+
+/* ══════════════════════════════════════════
+   SYNTAX — XML
+══════════════════════════════════════════ */
+function syntaxXML(text){
+  return esc(text)
+    .replace(/(&lt;\?[^?]*\?&gt;)/g,'<span class="xt">$1</span>')
+    .replace(/&lt;(\/?)([a-zA-Z][a-zA-Z0-9_.-]*)/g,'&lt;<span class="xt">$1$2</span>')
+    .replace(/([a-zA-Z][a-zA-Z0-9_.-]*)=(&quot;[^&]*&quot;)/g,'<span class="xa">$1</span>=<span class="xv">$2</span>');
+}
+
+/* ══════════════════════════════════════════
+   SYNTAX — YAML
+══════════════════════════════════════════ */
+function syntaxYAML(text){
+  return esc(text)
+    .replace(/^(\s*)([\w"'][^:\n]*?)(:)(\s|$)/gm, '$1<span class="yk">$2</span>$3$4')
+    .replace(/^(\s*)(- )/gm,'$1<span class="yd">- </span>')
+    .replace(/: (true|false)(\s*)$/gm,': <span class="yb">$1</span>$2')
+    .replace(/: (null)(\s*)$/gm,': <span class="ynu">$1</span>$2')
+    .replace(/: (-?\d+\.?\d*(?:e[+\-]?\d+)?)(\s*)$/gmi,': <span class="yn">$1</span>$2')
+    .replace(/: (&quot;[^"]*&quot;)(\s*)$/gm,': <span class="ys">$1</span>$2');
+}
+
+/* ══════════════════════════════════════════
+   RENDER OUTPUT
+══════════════════════════════════════════ */
+function renderOutput(){
+  /* close search when switching view */
+  clearSearch();
+
+  if(!lastText){
+    showOutContainer("main");
+    showPlaceholder();
+    return;
   }
 
-  /* ═══════════ JSON → XML ═══════════ */
-  function jsonToXml(obj, rootName, indent, depth){
-    var pad = ""; for(var d=0;d<depth;d++) pad += indent;
-    var pad1 = pad + indent;
+  switch(currentView){
 
-    if(obj === null) return pad + "<" + rootName + " />";
-    if(typeof obj !== "object") return pad + "<" + rootName + ">" + esc(String(obj)) + "</" + rootName + ">";
-
-    if(Array.isArray(obj)){
-      if(obj.length === 0) return pad + "<" + rootName + " />";
-      var items = [];
-      for(var i=0; i<obj.length; i++){
-        items.push(jsonToXml(obj[i], "item", indent, depth));
-      }
-      return pad + "<" + rootName + ">\n" + items.join("\n") + "\n" + pad + "</" + rootName + ">";
-    }
-
-    var keys = Object.keys(obj);
-    if(keys.length === 0) return pad + "<" + rootName + " />";
-    var children = [];
-    for(var ki=0; ki<keys.length; ki++){
-      var tag = keys[ki].replace(/[^a-zA-Z0-9_.-]/g, "_");
-      if(/^[0-9]/.test(tag)) tag = "_" + tag;
-      children.push(jsonToXml(obj[keys[ki]], tag, indent, depth+1));
-    }
-    return pad + "<" + rootName + ">\n" + children.join("\n") + "\n" + pad + "</" + rootName + ">";
-  }
-  function toXml(data){
-    return '<?xml version="1.0" encoding="UTF-8"?>\n' + jsonToXml(data, "root", getIndent(), 0);
-  }
-
-  /* ═══════════ JSON → YAML ═══════════ */
-  function jsonToYaml(obj, indent, depth){
-    var pad = ""; for(var d=0;d<depth;d++) pad += indent;
-
-    if(obj === null) return "null";
-    if(typeof obj === "boolean") return obj ? "true" : "false";
-    if(typeof obj === "number") return String(obj);
-    if(typeof obj === "string"){
-      if(/[\n\r:#{}[\],&*?|>!%@`]/.test(obj) || obj === "" || obj === "true" || obj === "false" || obj === "null" || !isNaN(Number(obj)))
-        return '"' + obj.replace(/\\/g,"\\\\").replace(/"/g,'\\"').replace(/\n/g,"\\n").replace(/\r/g,"\\r") + '"';
-      return obj;
-    }
-
-    if(Array.isArray(obj)){
-      if(obj.length === 0) return "[]";
-      var lines = [];
-      for(var i=0; i<obj.length; i++){
-        var val = jsonToYaml(obj[i], indent, depth+1);
-        if(typeof obj[i] === "object" && obj[i] !== null && !Array.isArray(obj[i]) && Object.keys(obj[i]).length > 0){
-          var firstLine = val.trimStart();
-          lines.push(pad + "- " + firstLine);
-        } else if(Array.isArray(obj[i]) && obj[i].length > 0){
-          lines.push(pad + "-");
-          lines.push(val);
-        } else {
-          lines.push(pad + "- " + val);
-        }
-      }
-      return lines.join("\n");
-    }
-
-    var keys = Object.keys(obj);
-    if(keys.length === 0) return "{}";
-    var parts = [];
-    for(var ki=0; ki<keys.length; ki++){
-      var k = keys[ki];
-      var kStr = /[:#{}[\],&*?|>!%@`\s]/.test(k) || k === "" ? '"'+k.replace(/"/g,'\\"')+'"' : k;
-      var v = obj[k];
-      if(typeof v === "object" && v !== null){
-        var nested = jsonToYaml(v, indent, depth+1);
-        if((Array.isArray(v) && v.length > 0) || (!Array.isArray(v) && Object.keys(v).length > 0)){
-          parts.push(pad + kStr + ":\n" + nested);
-        } else {
-          parts.push(pad + kStr + ": " + nested);
-        }
-      } else {
-        parts.push(pad + kStr + ": " + jsonToYaml(v, indent, depth+1));
-      }
-    }
-    return parts.join("\n");
-  }
-  function toYaml(data){
-    return jsonToYaml(data, getIndent(), 0);
-  }
-
-  /* ═══════════ JSON → CSV / TSV ═══════════ */
-  function flattenForCsv(data){
-    var rows = [];
-    if(Array.isArray(data)){
-      for(var i=0;i<data.length;i++){
-        if(typeof data[i]==="object" && data[i]!==null && !Array.isArray(data[i])){
-          rows.push(data[i]);
-        } else {
-          rows.push({ value: data[i] });
-        }
-      }
-    } else if(typeof data==="object" && data!==null){
-      rows.push(data);
-    } else {
-      rows.push({ value: data });
-    }
-    return rows;
-  }
-  function toCsv(data, sep){
-    sep = sep || ",";
-    var rows = flattenForCsv(data);
-    if(rows.length === 0) return "";
-    var allKeys = [];
-    var keySet = {};
-    for(var r=0;r<rows.length;r++){
-      var keys = Object.keys(rows[r]);
-      for(var k=0;k<keys.length;k++){
-        if(!keySet[keys[k]]){ keySet[keys[k]]=true; allKeys.push(keys[k]); }
-      }
-    }
-    function csvEsc(val){
-      if(val===null||val===undefined) return "";
-      var s = typeof val==="object" ? JSON.stringify(val) : String(val);
-      if(s.indexOf(sep)>-1||s.indexOf('"')>-1||s.indexOf('\n')>-1||s.indexOf('\r')>-1)
-        return '"'+s.replace(/"/g,'""')+'"';
-      return s;
-    }
-    var lines = [allKeys.map(csvEsc).join(sep)];
-    for(var ri=0;ri<rows.length;ri++){
-      var cells = [];
-      for(var ki=0;ki<allKeys.length;ki++) cells.push(csvEsc(rows[ri][allKeys[ki]]));
-      lines.push(cells.join(sep));
-    }
-    return lines.join("\n");
-  }
-
-  /* ═══════════ Syntax highlight for non-JSON formats ═══════════ */
-  function highlightXml(text){
-    return text.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
-      .replace(/&lt;(\/?)([\w._-]+)(.*?)(\/?)\s*&gt;/g, function(m, slash, tag, attrs, selfClose){
-        var attrHtml = attrs.replace(/([\w._:-]+)=(&quot;|")(.*?)(\2)/g,
-          '<span class="x-attr">$1</span>=<span class="x-val">"$3"</span>');
-        return '<span class="x-tag">&lt;'+slash+tag+'</span>'+attrHtml+'<span class="x-tag">'+selfClose+'&gt;</span>';
-      })
-      .replace(/&lt;\?(.+?)\?&gt;/g,'<span class="x-cdata">&lt;?$1?&gt;</span>');
-  }
-  function highlightYaml(text){
-    return esc(text).replace(/^(\s*)([\w"'][^:\n]*?)(:)/gm, function(m, space, key, colon){
-      return space + '<span class="y-key">' + key + '</span>' + colon;
-    }).replace(/^(\s*)(- )/gm, '$1<span class="y-dash">- </span>')
-      .replace(/: (true|false)\s*$/gm, ': <span class="y-bool">$1</span>')
-      .replace(/: (null)\s*$/gm, ': <span class="y-null">$1</span>')
-      .replace(/: (-?\d+\.?\d*(?:e[+-]?\d+)?)\s*$/gmi, ': <span class="y-num">$1</span>')
-      .replace(/: (".*?")\s*$/gm, ': <span class="y-str">$1</span>');
-  }
-
-  /* ═══════════ Show error ═══════════ */
-  function showError(parsed){
-    var h = '<div class="error-msg"><div class="error-title"><svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm-.75 4a.75.75 0 0 1 1.5 0v3a.75.75 0 0 1-1.5 0V5zM8 11.5A.75.75 0 1 1 8 10a.75.75 0 0 1 0 1.5z"/></svg>Invalid JSON</div>';
-    h += '<div>' + esc(parsed.message) + '</div>';
-    if(parsed.line !== null){
-      h += '<div class="error-detail">Error near line ' + parsed.line + ', column ' + parsed.col + '</div>';
-      var lines = input.value.split("\n");
-      if(parsed.line <= lines.length){
-        var errorLine = lines[parsed.line - 1];
-        h += '<div class="error-line"><strong>Line ' + parsed.line + ':</strong> ' + esc(errorLine) + '</div>';
-      }
-    }
-    h += '</div>';
-    output.innerHTML = h;
-    outputStats.textContent = "";
-    outputFmt.textContent = "";
-    lastOutputText = "";
-    parsedData = null;
-  }
-
-  /* ═══════════ Refresh output ═══════════ */
-  function refreshOutput(){
-    if(!lastOutputText) return;
-    if(currentView === "raw"){
-      output.innerHTML = '<span style="white-space:pre-wrap;word-break:break-all">' + esc(lastOutputText) + '</span>';
-    } else {
-      if(lastOutputFormat === "json" && parsedData !== null){
-        output.innerHTML = buildTree(parsedData, getIndent(), 0);
-        attachToggleListeners();
+    case "tree":
+      showOutContainer("main");
+      if(lastFmt==="json" && parsedData!==null){
+        outMain.innerHTML = buildTree(parsedData, getIndentStr(), 0);
+        attachTreeListeners();
         allCollapsed = false;
-      } else if(lastOutputFormat === "xml"){
-        output.innerHTML = highlightXml(lastOutputText);
-      } else if(lastOutputFormat === "yaml"){
-        output.innerHTML = highlightYaml(lastOutputText);
+      } else if(lastFmt==="xml"){
+        outMain.innerHTML = syntaxXML(lastText);
+      } else if(lastFmt==="yaml"){
+        outMain.innerHTML = syntaxYAML(lastText);
       } else {
-        output.innerHTML = '<span style="white-space:pre-wrap;word-break:break-all">' + esc(lastOutputText) + '</span>';
+        outMain.innerHTML = '<span style="white-space:pre-wrap">'+ esc(lastText) +'</span>';
       }
-    }
-  }
+      break;
 
-  /* ═══════════ PII Redaction ═══════════ */
-  var piiKeys = /^(ssn|ein|social_security|social_security_number|tax_id|taxpayer_id|tin)$/i;
-  var ssnPattern = /\b\d{3}-?\d{2}-?\d{4}\b/g;
-  var einPattern = /\b\d{2}-?\d{7}\b/g;
-  function redactValue(val){
-    if(typeof val === "string"){
-      if(ssnPattern.test(val) || einPattern.test(val)){
-        ssnPattern.lastIndex = 0; einPattern.lastIndex = 0;
-        return "<REDACTED>";
-      }
-      ssnPattern.lastIndex = 0; einPattern.lastIndex = 0;
-    }
-    return val;
-  }
-  function redactPII(obj){
-    if(obj === null || typeof obj !== "object") return redactValue(obj);
-    if(Array.isArray(obj)){
-      var arr = [];
-      for(var i = 0; i < obj.length; i++) arr.push(redactPII(obj[i]));
-      return arr;
-    }
-    var out = {};
-    var keys = Object.keys(obj);
-    for(var k = 0; k < keys.length; k++){
-      var key = keys[k];
-      if(piiKeys.test(key)){
-        out[key] = "<REDACTED>";
+    case "code":
+      showOutContainer("code");
+      buildCode(lastText, lastFmt);
+      break;
+
+    case "form":
+      showOutContainer("form");
+      if(lastFmt==="json" && parsedData!==null){
+        buildForm(parsedData);
       } else {
-        out[key] = redactPII(obj[key]);
+        outForm.innerHTML = '<div style="padding:16px;color:var(--text3);font-size:13px">Form view is only available for formatted JSON.</div>';
       }
+      break;
+
+    case "raw":
+      showOutContainer("main");
+      outMain.innerHTML = '<span style="white-space:pre-wrap;word-break:break-all">'+ esc(lastText) +'</span>';
+      break;
+  }
+}
+
+/* ══════════════════════════════════════════
+   SET OUTPUT (called after format/convert)
+══════════════════════════════════════════ */
+function setOutput(text, fmt, data){
+  lastText    = text;
+  lastFmt     = fmt;
+  parsedData  = data || null;
+  var labels  = {json:"JSON",xml:"XML",yaml:"YAML",csv:"CSV",tsv:"TSV"};
+  outFmt.textContent  = labels[fmt] || "";
+  outStats.textContent= text.length.toLocaleString() + " chars";
+  renderOutput();
+}
+
+/* ══════════════════════════════════════════
+   PLACEHOLDER
+══════════════════════════════════════════ */
+function showPlaceholder(msg){
+  outMain.innerHTML = '<div style="color:var(--text3);padding:24px;text-align:center;line-height:1.9">'
+    + '<svg width="44" height="44" viewBox="0 0 16 16" fill="currentColor" style="opacity:.2;display:block;margin:0 auto 10px"><path d="M4 1.5A1.5 1.5 0 0 0 2.5 3v10A1.5 1.5 0 0 0 4 14.5h8a1.5 1.5 0 0 0 1.5-1.5V5.62a1.5 1.5 0 0 0-.44-1.06L10.44 1.94A1.5 1.5 0 0 0 9.38 1.5H4zM5 6.5h6v1.2H5V6.5zm0 2.5h4v1.2H5V9z"/></svg>'
+    + '<div style="font-size:13px;font-weight:600;color:var(--text2)">'+ (msg || "Paste JSON in the input panel and click Format") +'</div>'
+    + '<div style="font-size:11.5px;margin-top:5px">Drag &amp; drop a file &nbsp;•&nbsp; click <b>Upload</b> to browse &nbsp;•&nbsp; click <b>+</b> for sample data</div>'
+    + '</div>';
+}
+
+/* ══════════════════════════════════════════
+   ERROR
+══════════════════════════════════════════ */
+function showError(p){
+  showOutContainer("main");
+  var h = '<div class="err-box">'
+    +'<div class="err-ttl"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor"><path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm-.75 4a.75.75 0 0 1 1.5 0v3a.75.75 0 0 1-1.5 0V5zM8 11.5A.75.75 0 1 1 8 10a.75.75 0 0 1 0 1.5z"/></svg> Invalid JSON</div>'
+    + esc(p.msg);
+  if(p.line!==null){
+    h += '<div class="err-sub">Error near line '+ p.line +', column '+ p.col +'</div>';
+    var lines = jInput.value.split("\n");
+    if(p.line <= lines.length)
+      h += '<div class="err-ln"><strong>Line '+ p.line +':</strong> '+ esc(lines[p.line-1]) +'</div>';
+  }
+  h += '</div>';
+  outMain.innerHTML = h;
+  outStats.textContent = ""; outFmt.textContent = "";
+  lastText = ""; parsedData = null;
+}
+
+/* ══════════════════════════════════════════
+   CONVERTERS
+══════════════════════════════════════════ */
+
+/* JSON → XML */
+function jsonToXml(obj, tag, ind, depth){
+  var pad = ""; for(var d=0;d<depth;d++) pad+=ind;
+  tag = String(tag).replace(/[^a-zA-Z0-9_.-]/g,"_");
+  if(/^[0-9]/.test(tag)) tag = "_"+tag;
+  if(obj===null)            return pad+"<"+tag+" />";
+  if(typeof obj !== "object") return pad+"<"+tag+">"+esc(String(obj))+"</"+tag+">";
+  if(Array.isArray(obj)){
+    if(!obj.length) return pad+"<"+tag+" />";
+    return pad+"<"+tag+">\n"+ obj.map(function(v){ return jsonToXml(v,"item",ind,depth+1); }).join("\n") +"\n"+pad+"</"+tag+">";
+  }
+  var keys=Object.keys(obj);
+  if(!keys.length) return pad+"<"+tag+" />";
+  return pad+"<"+tag+">\n"+ keys.map(function(k){ return jsonToXml(obj[k],k,ind,depth+1); }).join("\n") +"\n"+pad+"</"+tag+">";
+}
+function toXml(data){ return '<?xml version="1.0" encoding="UTF-8"?>\n'+jsonToXml(data,"root",getIndentStr(),0); }
+
+/* JSON → YAML */
+function jsonToYaml(obj, ind, depth){
+  var pad=""; for(var d=0;d<depth;d++) pad+=ind;
+  if(obj===null)           return "null";
+  if(typeof obj==="boolean") return String(obj);
+  if(typeof obj==="number")  return String(obj);
+  if(typeof obj==="string"){
+    if(!obj || /[\n\r:#{}[\],&*?|>!%@`]/.test(obj) ||
+       obj==="true"||obj==="false"||obj==="null"||!isNaN(Number(obj)))
+      return '"'+obj.replace(/\\/g,"\\\\").replace(/"/g,'\\"').replace(/\n/g,"\\n").replace(/\r/g,"\\r")+'"';
+    return obj;
+  }
+  if(Array.isArray(obj)){
+    if(!obj.length) return "[]";
+    return obj.map(function(v){
+      var s = jsonToYaml(v, ind, depth+1);
+      if(typeof v==="object"&&v!==null&&!Array.isArray(v)&&Object.keys(v).length)
+        return pad+"- "+s.trimStart();
+      if(Array.isArray(v)&&v.length) return pad+"-\n"+s;
+      return pad+"- "+s;
+    }).join("\n");
+  }
+  var keys=Object.keys(obj);
+  if(!keys.length) return "{}";
+  return keys.map(function(k){
+    var ks = /[:#{}[\],&*?|>!%@`\s]/.test(k)||!k ? '"'+k.replace(/"/g,'\\"')+'"' : k;
+    var v = obj[k];
+    if(typeof v==="object"&&v!==null){
+      var nested = jsonToYaml(v,ind,depth+1);
+      var hasContent = Array.isArray(v)?v.length:Object.keys(v).length;
+      return hasContent ? pad+ks+":\n"+nested : pad+ks+": "+nested;
     }
+    return pad+ks+": "+jsonToYaml(v,ind,depth+1);
+  }).join("\n");
+}
+function toYaml(data){ return jsonToYaml(data, getIndentStr(), 0); }
+
+/* JSON → CSV / TSV */
+function toDsv(data, sep){
+  var rows = Array.isArray(data) ? data.map(function(r){
+    return(typeof r==="object"&&r!==null&&!Array.isArray(r))?r:{value:r};
+  }) : (typeof data==="object"&&data!==null?[data]:[{value:data}]);
+  if(!rows.length) return "";
+  var allKeys=[],seen={};
+  rows.forEach(function(r){ Object.keys(r).forEach(function(k){ if(!seen[k]){seen[k]=1;allKeys.push(k);} }); });
+  function cell(v){
+    if(v===null||v===undefined) return "";
+    var s=typeof v==="object"?JSON.stringify(v):String(v);
+    if(s.indexOf(sep)>-1||s.indexOf('"')>-1||s.indexOf('\n')>-1) return '"'+s.replace(/"/g,'""')+'"';
+    return s;
+  }
+  return [allKeys.map(cell).join(sep)].concat(rows.map(function(r){ return allKeys.map(function(k){ return cell(r[k]); }).join(sep); })).join("\n");
+}
+
+/* ══════════════════════════════════════════
+   ACTIONS
+══════════════════════════════════════════ */
+function doFormat(){
+  var text = jInput.value.trim();
+  if(!text){ showOutContainer("main"); showPlaceholder(); return; }
+  var p = parseJSON(text);
+  if(!p.ok){ showError(p); return; }
+  var pretty = JSON.stringify(p.val, null, getIndentArg());
+  setOutput(pretty, "json", p.val);
+  toast("Formatted successfully","ok");
+}
+
+function doMinify(){
+  var text = jInput.value.trim();
+  if(!text){ showOutContainer("main"); showPlaceholder("Paste JSON and click Minify"); return; }
+  var p = parseJSON(text);
+  if(!p.ok){ showError(p); return; }
+  setOutput(JSON.stringify(p.val), "json", p.val);
+  toast("Minified","ok");
+}
+
+function doValidate(){
+  var text = jInput.value.trim();
+  if(!text){ toast("Nothing to validate","err"); return; }
+  var p = parseJSON(text);
+  if(!p.ok){ showError(p); toast("Invalid JSON — see output","err"); }
+  else { toast("Valid JSON ✔","ok"); if(!lastText) doFormat(); }
+}
+
+function doConvert(fmt){
+  var text = jInput.value.trim();
+  if(!text){ toast("Nothing to convert","err"); return; }
+  var p = parseJSON(text);
+  if(!p.ok){ showError(p); return; }
+  var result;
+  try{
+    if(fmt==="xml")       result=toXml(p.val);
+    else if(fmt==="yaml") result=toYaml(p.val);
+    else if(fmt==="csv")  result=toDsv(p.val,",");
+    else if(fmt==="tsv")  result=toDsv(p.val,"\t");
+    else return;
+  } catch(err){ toast("Conversion failed: "+err.message,"err"); return; }
+  /* converted formats show best in code/raw view */
+  if(currentView==="tree"||currentView==="form"){
+    document.querySelectorAll(".vtab").forEach(function(t){
+      var isCode = t.getAttribute("data-v")==="code";
+      t.classList.toggle("active",isCode); t.setAttribute("aria-selected",String(isCode));
+    });
+    currentView = "code";
+  }
+  setOutput(result, fmt, p.val);
+  toast("Converted to "+fmt.toUpperCase(),"ok");
+}
+
+function doDownload(fmt){
+  var text = jInput.value.trim();
+  if(!text){ toast("Nothing to download","err"); return; }
+  var p = parseJSON(text);
+  if(!p.ok){ showError(p); toast("Fix errors before downloading","err"); return; }
+  var content,mime,ext;
+  try{
+    if(fmt==="json"){ content=JSON.stringify(p.val,null,getIndentArg()); mime="application/json"; ext="json"; }
+    else if(fmt==="xml"){ content=toXml(p.val); mime="application/xml"; ext="xml"; }
+    else if(fmt==="yaml"){ content=toYaml(p.val); mime="text/yaml"; ext="yaml"; }
+    else if(fmt==="csv"){ content=toDsv(p.val,","); mime="text/csv"; ext="csv"; }
+    else if(fmt==="tsv"){ content=toDsv(p.val,"\t"); mime="text/tab-separated-values"; ext="tsv"; }
+    else return;
+  } catch(err){ toast("Export failed: "+err.message,"err"); return; }
+  var blob = new Blob([content],{type:mime+";charset=utf-8"});
+  var url  = URL.createObjectURL(blob);
+  var a    = document.createElement("a");
+  a.href=url; a.download="data."+ext;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(function(){ URL.revokeObjectURL(url); },1000);
+  toast("Downloaded data."+ext,"ok");
+}
+
+function doCopy(){
+  if(!lastText){ toast("Nothing to copy","err"); return; }
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(lastText).then(
+      function(){ toast("Copied to clipboard!","ok"); },
+      function(){ fallbackCopy(); }
+    );
+  } else fallbackCopy();
+}
+function fallbackCopy(){
+  try{
+    var ta=document.createElement("textarea");
+    ta.value=lastText; ta.style.cssText="position:fixed;left:-9999px;top:0";
+    document.body.appendChild(ta); ta.select(); document.execCommand("copy");
+    document.body.removeChild(ta); toast("Copied!","ok");
+  }catch(e){ toast("Copy failed","err"); }
+}
+
+function doToggleAll(){
+  if(currentView!=="tree"){ toast("Toggle only works in Tree view","info"); return; }
+  var colls = outMain.querySelectorAll(".coll");
+  if(!colls.length) return;
+  allCollapsed = !allCollapsed;
+  colls.forEach(function(c){
+    var btn = c.querySelector(".coll-tog");
+    if(allCollapsed){ c.classList.add("cls"); if(btn){btn.textContent="▶";btn.setAttribute("aria-expanded","false");btn.setAttribute("aria-label","Expand");} }
+    else             { c.classList.remove("cls"); if(btn){btn.textContent="▼";btn.setAttribute("aria-expanded","true");btn.setAttribute("aria-label","Collapse");} }
+  });
+}
+
+function doClear(){
+  jInput.value=""; lastText=""; parsedData=null; lastFmt="json";
+  showOutContainer("main"); showPlaceholder();
+  outStats.textContent=""; outFmt.textContent="";
+  updateGutter(); updateInStats();
+  clearSearch();
+  jInput.focus();
+}
+
+/* ══════════════════════════════════════════
+   SEARCH
+══════════════════════════════════════════ */
+function openSearch(){
+  searchBar.classList.remove("hidden");
+  searchInput.focus();
+  searchInput.select();
+}
+function closeSearch(){
+  searchBar.classList.add("hidden");
+  clearSearch();
+}
+function clearSearch(){
+  searchMatches=[];
+  searchIdx=-1;
+  searchCount.textContent="";
+  btnSPrev.disabled=true;
+  btnSNext.disabled=true;
+  /* remove existing highlights */
+  var active = currentView==="code" ? outCode : outMain;
+  /* replace marks with their text */
+  var marks = active.querySelectorAll("mark.sh");
+  marks.forEach(function(m){
+    var txt = document.createTextNode(m.textContent);
+    m.parentNode.replaceChild(txt, m);
+  });
+  /* normalise text nodes */
+  try{ active.normalize(); }catch(e){}
+}
+
+function doSearch(){
+  /* remove old highlights first */
+  var active = currentView==="code" ? outCode :
+               currentView==="form" ? outForm : outMain;
+
+  /* rebuild output fresh then re-highlight */
+  if(currentView==="code"){ buildCode(lastText, lastFmt); }
+  else if(currentView==="form"){ buildForm(parsedData); }
+  else { renderOutput(); }
+
+  var term = searchInput.value;
+  if(!term){ searchCount.textContent=""; btnSPrev.disabled=true; btnSNext.disabled=true; return; }
+
+  /* walk text nodes and wrap matches */
+  searchMatches=[];
+  searchIdx=-1;
+  var re;
+  try{ re=new RegExp(term.replace(/[.*+?^${}()|[\]\\]/g,"\\$&"),"gi"); }
+  catch(e){ return; }
+
+  function walkTextNodes(node){
+    if(node.nodeType===3){
+      var text=node.nodeValue, match, parts=[], last=0;
+      re.lastIndex=0;
+      var found=false;
+      while((match=re.exec(text))!==null){
+        found=true;
+        if(match.index>last) parts.push(document.createTextNode(text.slice(last,match.index)));
+        var mark=document.createElement("mark");
+        mark.className="sh";
+        mark.textContent=match[0];
+        parts.push(mark);
+        searchMatches.push(mark);
+        last=match.index+match[0].length;
+      }
+      if(found){
+        if(last<text.length) parts.push(document.createTextNode(text.slice(last)));
+        var frag=document.createDocumentFragment();
+        parts.forEach(function(p){ frag.appendChild(p); });
+        node.parentNode.replaceChild(frag, node);
+      }
+    } else if(node.nodeType===1 && node.nodeName!=="SCRIPT" && node.nodeName!=="STYLE"){
+      Array.from(node.childNodes).forEach(walkTextNodes);
+    }
+  }
+  walkTextNodes(currentView==="code"?outCode : currentView==="form"?outForm : outMain);
+
+  var count=searchMatches.length;
+  if(count>0){
+    searchIdx=0;
+    updateSearchHighlight();
+    btnSPrev.disabled=false;
+    btnSNext.disabled=false;
+    searchCount.textContent="1 / "+count;
+  } else {
+    searchCount.textContent="0 results";
+    btnSPrev.disabled=true;
+    btnSNext.disabled=true;
+  }
+}
+
+function updateSearchHighlight(){
+  searchMatches.forEach(function(m,i){ m.classList.toggle("sh-cur",i===searchIdx); });
+  if(searchMatches[searchIdx]) searchMatches[searchIdx].scrollIntoView({block:"nearest",behavior:"smooth"});
+  searchCount.textContent=(searchIdx+1)+" / "+searchMatches.length;
+}
+
+btnSNext.addEventListener("click", function(){
+  if(!searchMatches.length) return;
+  searchIdx=(searchIdx+1)%searchMatches.length;
+  updateSearchHighlight();
+});
+btnSPrev.addEventListener("click", function(){
+  if(!searchMatches.length) return;
+  searchIdx=(searchIdx-1+searchMatches.length)%searchMatches.length;
+  updateSearchHighlight();
+});
+
+document.getElementById("btnSearch").addEventListener("click", function(){
+  if(searchBar.classList.contains("hidden")) openSearch(); else closeSearch();
+});
+document.getElementById("btnSearchClose").addEventListener("click", closeSearch);
+
+var searchTimer=null;
+searchInput.addEventListener("input", function(){
+  clearTimeout(searchTimer);
+  searchTimer=setTimeout(doSearch,200);
+});
+searchInput.addEventListener("keydown", function(e){
+  if(e.key==="Enter"){ e.preventDefault(); if(e.shiftKey) btnSPrev.click(); else btnSNext.click(); }
+  if(e.key==="Escape"){ closeSearch(); }
+});
+
+/* ══════════════════════════════════════════
+   UPLOAD / DRAG & DROP
+══════════════════════════════════════════ */
+var modalUpload = document.getElementById("modalUpload");
+var uploadZone  = document.getElementById("uploadZone");
+var fileInput   = document.getElementById("fileInput");
+
+function openModal(){ modalUpload.classList.add("open"); fileInput.value=""; }
+function closeModal(){ modalUpload.classList.remove("open"); }
+
+document.getElementById("btnUpload").addEventListener("click", openModal);
+document.getElementById("btnCloseModal").addEventListener("click", closeModal);
+modalUpload.addEventListener("click", function(e){ if(e.target===modalUpload) closeModal(); });
+
+uploadZone.addEventListener("click", function(){ fileInput.click(); });
+uploadZone.addEventListener("dragover", function(e){ e.preventDefault(); this.classList.add("drag"); });
+uploadZone.addEventListener("dragleave", function(){ this.classList.remove("drag"); });
+uploadZone.addEventListener("drop", function(e){
+  e.preventDefault(); this.classList.remove("drag");
+  if(e.dataTransfer.files.length) loadFile(e.dataTransfer.files[0]);
+});
+fileInput.addEventListener("change", function(){ if(this.files.length) loadFile(this.files[0]); });
+
+function loadFile(file){
+  if(file.size > 10*1024*1024){ toast("File too large (max 10 MB)","err"); return; }
+  var reader=new FileReader();
+  reader.onload=function(){
+    jInput.value=reader.result;
+    updateGutter(); updateInStats();
+    closeModal();
+    toast("Loaded: "+file.name+" ("+(file.size/1024).toFixed(1)+" KB)","ok");
+  };
+  reader.onerror=function(){ toast("Failed to read file","err"); };
+  reader.readAsText(file);
+}
+
+/* Panel drag-and-drop */
+var dragN=0;
+inWrap.addEventListener("dragenter",function(e){ e.preventDefault(); dragN++; dropOv.classList.add("on"); });
+inWrap.addEventListener("dragleave",function(e){ e.preventDefault(); dragN--; if(dragN<=0){dragN=0;dropOv.classList.remove("on");} });
+inWrap.addEventListener("dragover",function(e){ e.preventDefault(); });
+inWrap.addEventListener("drop",function(e){
+  e.preventDefault(); dragN=0; dropOv.classList.remove("on");
+  if(e.dataTransfer.files.length) loadFile(e.dataTransfer.files[0]);
+});
+
+/* ══════════════════════════════════════════
+   SAMPLE DATA
+══════════════════════════════════════════ */
+function loadSample(){
+  jInput.value = JSON.stringify({
+    "company": "Acme Corp",
+    "founded": 2010,
+    "active": true,
+    "address": {
+      "street": "123 Innovation Drive",
+      "city":   "San Francisco",
+      "state":  "CA",
+      "zip":    "94105"
+    },
+    "employees": [
+      {"id":1,"name":"Alice Johnson","role":"CEO",   "skills":["leadership","strategy"]},
+      {"id":2,"name":"Bob Smith",    "role":"CTO",   "skills":["engineering","architecture"]},
+      {"id":3,"name":"Carol White",  "role":"Design","skills":["UI/UX","prototyping"]}
+    ],
+    "metrics": {
+      "revenue":5200000,"customers":1240,"nps":72,
+      "regions":["NA","EU","APAC"]
+    },
+    "metadata": null
+  }, null, 2);
+  updateGutter(); updateInStats();
+  toast("Sample JSON loaded","info");
+}
+
+/* ══════════════════════════════════════════
+   BUTTON BINDINGS
+══════════════════════════════════════════ */
+document.getElementById("btnFormat").addEventListener("click",  doFormat);
+document.getElementById("btnMinify").addEventListener("click",  doMinify);
+document.getElementById("btnValidate").addEventListener("click",doValidate);
+document.getElementById("btnCopy").addEventListener("click",    doCopy);
+document.getElementById("btnToggle").addEventListener("click",  doToggleAll);
+document.getElementById("btnClear").addEventListener("click",   doClear);
+document.getElementById("btnSample").addEventListener("click",  loadSample);
+
+document.querySelectorAll("#menuConvert .dd-item").forEach(function(item){
+  item.addEventListener("click", function(){ doConvert(this.dataset.fmt); closeAllDD(); });
+});
+document.querySelectorAll("#menuDownload .dd-item").forEach(function(item){
+  item.addEventListener("click", function(){ doDownload(this.dataset.dl); closeAllDD(); });
+});
+
+/* ══════════════════════════════════════════
+   KEYBOARD SHORTCUTS
+══════════════════════════════════════════ */
+document.addEventListener("keydown", function(e){
+  var mac = e.metaKey, ctrl = e.ctrlKey;
+  if((mac||ctrl) && e.key==="Enter"){ e.preventDefault(); doFormat(); return; }
+  if((mac||ctrl) && e.key==="f" && document.activeElement!==jInput){
+    e.preventDefault(); openSearch(); return;
+  }
+  if(e.key==="Escape"){
+    closeModal(); closeAllDD();
+    if(!searchBar.classList.contains("hidden")) closeSearch();
+  }
+});
+
+/* ══════════════════════════════════════════
+   DIFF MODE
+══════════════════════════════════════════ */
+var diffMode     = false;
+var diffViewMode = "unified";
+var mainEl       = document.querySelector(".main");
+var diffArea     = document.getElementById("diffArea");
+var diffInputA   = document.getElementById("diffInputA");
+var diffInputB   = document.getElementById("diffInputB");
+var diffGutterA  = document.getElementById("diffGutterA");
+var diffGutterB  = document.getElementById("diffGutterB");
+var diffOut      = document.getElementById("diffOut");
+var diffStatsEl  = document.getElementById("diffStats");
+var diffCtxSel   = document.getElementById("diffCtxSel");
+var diffFmtJson  = document.getElementById("diffFmtJson");
+
+function openDiffMode(){
+  diffMode = true;
+  mainEl.style.display  = "none";
+  diffArea.style.display= "";
+  document.getElementById("btnDiff").classList.add("btn-pri");
+  diffInputA.focus();
+}
+function closeDiffMode(){
+  diffMode = false;
+  mainEl.style.display  = "";
+  diffArea.style.display= "none";
+  document.getElementById("btnDiff").classList.remove("btn-pri");
+}
+document.getElementById("btnDiff").addEventListener("click", function(){
+  diffMode ? closeDiffMode() : openDiffMode();
+});
+document.getElementById("btnDiffClose").addEventListener("click", closeDiffMode);
+
+/* gutter sync for diff inputs */
+function updateDiffGutter(ta, gut){
+  var n = 1, t = ta.value;
+  for(var i=0;i<t.length;i++) if(t.charCodeAt(i)===10) n++;
+  var out=[]; for(var k=1;k<=n;k++) out.push(k);
+  gut.textContent = out.join("\n");
+}
+diffInputA.addEventListener("input",  function(){ updateDiffGutter(diffInputA, diffGutterA); });
+diffInputB.addEventListener("input",  function(){ updateDiffGutter(diffInputB, diffGutterB); });
+diffInputA.addEventListener("scroll", function(){ diffGutterA.scrollTop = diffInputA.scrollTop; });
+diffInputB.addEventListener("scroll", function(){ diffGutterB.scrollTop = diffInputB.scrollTop; });
+
+/* ─── LCS-based line diff ─── */
+/* Returns array of {t:'='|'d'|'i', ai, bi} ops */
+function lcsLineDiff(a, b){
+  var m=a.length, n=b.length;
+  if(m===0 && n===0) return [];
+  /* Safety cap — degrade gracefully on huge files */
+  if(m>4000 || n>4000){
+    var r=[];
+    for(var i=0;i<m;i++) r.push({t:'d',ai:i,bi:-1});
+    for(var j=0;j<n;j++) r.push({t:'i',ai:-1,bi:j});
+    return r;
+  }
+  /* Build LCS table */
+  var dp = [];
+  for(var i2=0;i2<=m;i2++){
+    dp[i2] = new Int32Array(n+1);
+  }
+  for(var i3=1;i3<=m;i3++){
+    for(var j3=1;j3<=n;j3++){
+      dp[i3][j3] = (a[i3-1]===b[j3-1])
+        ? dp[i3-1][j3-1]+1
+        : Math.max(dp[i3-1][j3], dp[i3][j3-1]);
+    }
+  }
+  /* Backtrack */
+  var ops=[], ci=m, cj=n;
+  while(ci>0||cj>0){
+    if(ci>0&&cj>0&&a[ci-1]===b[cj-1]){
+      ops.push({t:'=',ai:ci-1,bi:cj-1}); ci--; cj--;
+    } else if(cj>0&&(ci===0||dp[ci][cj-1]>=dp[ci-1][cj])){
+      ops.push({t:'i',ai:-1,bi:cj-1}); cj--;
+    } else {
+      ops.push({t:'d',ai:ci-1,bi:-1}); ci--;
+    }
+  }
+  ops.reverse();
+  return ops;
+}
+
+/* ─── Character-level diff ─── */
+/* Returns {a: htmlString, b: htmlString} with <span class="ci-del/ci-ins"> wraps */
+function charDiff(aStr, bStr){
+  if(aStr===bStr) return {a:esc(aStr), b:esc(bStr)};
+  /* Skip char diff for very long lines — just escape */
+  if(aStr.length + bStr.length > 3000) return {a:esc(aStr), b:esc(bStr)};
+  var m=aStr.length, n=bStr.length;
+  var dp=[];
+  for(var i=0;i<=m;i++){ dp[i]=new Int32Array(n+1); }
+  for(var i2=1;i2<=m;i2++){
+    for(var j=1;j<=n;j++){
+      dp[i2][j]=(aStr[i2-1]===bStr[j-1])
+        ? dp[i2-1][j-1]+1
+        : Math.max(dp[i2-1][j],dp[i2][j-1]);
+    }
+  }
+  /* Backtrack chars */
+  var aOps=[], bOps=[], ci=m, cj=n;
+  while(ci>0||cj>0){
+    if(ci>0&&cj>0&&aStr[ci-1]===bStr[cj-1]){
+      aOps.push({t:'=',c:aStr[ci-1]}); bOps.push({t:'=',c:bStr[cj-1]});
+      ci--; cj--;
+    } else if(cj>0&&(ci===0||dp[ci][cj-1]>=dp[ci-1][cj])){
+      bOps.push({t:'i',c:bStr[cj-1]}); cj--;
+    } else {
+      aOps.push({t:'d',c:aStr[ci-1]}); ci--;
+    }
+  }
+  aOps.reverse(); bOps.reverse();
+  function renderCharOps(ops, delCls, insCls){
+    var out='', cur='';
+    function flush(){ if(cur){ out+='<span class="'+cur+'">'; } }
+    for(var k=0;k<ops.length;k++){
+      var op=ops[k];
+      var want = op.t==='d'?delCls : op.t==='i'?insCls : '';
+      if(want!==cur){
+        if(cur) out+='</span>';
+        cur=want;
+        if(cur) out+='<span class="'+cur+'">';
+      }
+      out+=esc(op.c);
+    }
+    if(cur) out+='</span>';
     return out;
   }
+  return {
+    a: renderCharOps(aOps,'ci-del',''),
+    b: renderCharOps(bOps,'','ci-ins')
+  };
+}
 
-  /* ═══════════ Set output ═══════════ */
-  function setOutput(text, format, data){
-    if(data !== null && data !== undefined){
-      data = redactPII(data);
-      if(format === "json") text = JSON.stringify(data, null, getIndentArg());
-    } else {
-      text = text.replace(ssnPattern, "<REDACTED>");
-      ssnPattern.lastIndex = 0;
-      text = text.replace(einPattern, "<REDACTED>");
-      einPattern.lastIndex = 0;
-    }
-    lastOutputText = text;
-    lastOutputFormat = format;
-    parsedData = data || null;
-    var fmtLabels = {json:"JSON",xml:"XML",yaml:"YAML",csv:"CSV",tsv:"TSV"};
-    outputFmt.textContent = fmtLabels[format] || "";
-    outputStats.textContent = text.length.toLocaleString() + " chars";
-    refreshOutput();
-  }
-
-  /* ═══════════ FORMAT ═══════════ */
-  function doFormat(){
-    var text = input.value.trim();
-    if(!text){ showPlaceholder("Paste JSON in the input panel and click Format."); return; }
-    var parsed = parseJSON(text);
-    if(!parsed.ok){ showError(parsed); return; }
-    var pretty = JSON.stringify(parsed.value, null, getIndentArg());
-    setOutput(pretty, "json", parsed.value);
-    showToast("Formatted successfully", "success");
-  }
-
-  /* ═══════════ MINIFY ═══════════ */
-  function doMinify(){
-    var text = input.value.trim();
-    if(!text){ showPlaceholder("Paste JSON in the input panel and click Minify."); return; }
-    var parsed = parseJSON(text);
-    if(!parsed.ok){ showError(parsed); return; }
-    var mini = JSON.stringify(parsed.value);
-    setOutput(mini, "json", parsed.value);
-    showToast("Minified successfully", "success");
-  }
-
-  /* ═══════════ VALIDATE ═══════════ */
-  function doValidate(){
-    var text = input.value.trim();
-    if(!text){ showToast("Nothing to validate", "error"); return; }
-    var parsed = parseJSON(text);
-    if(!parsed.ok){
-      showError(parsed);
-      showToast("Invalid JSON \u2014 see output for details", "error");
-    } else {
-      showToast("Valid JSON \u2714", "success");
-      if(!lastOutputText) doFormat();
-    }
-  }
-
-  /* ═══════════ CONVERT ═══════════ */
-  function doConvert(format){
-    var text = input.value.trim();
-    if(!text){ showToast("Nothing to convert", "error"); return; }
-    var parsed = parseJSON(text);
-    if(!parsed.ok){ showError(parsed); return; }
-    var safeData = redactPII(parsed.value);
-    var result;
-    try{
-      switch(format){
-        case "xml":  result = toXml(safeData); break;
-        case "yaml": result = toYaml(safeData); break;
-        case "csv":  result = toCsv(safeData, ","); break;
-        case "tsv":  result = toCsv(safeData, "\t"); break;
-        default: return;
-      }
-    }catch(err){ showToast("Conversion failed: " + err.message, "error"); return; }
-    setOutput(result, format, safeData);
-    showToast("Converted to " + format.toUpperCase(), "success");
-  }
-
-  /* ═══════════ DOWNLOAD ═══════════ */
-  function doDownload(format){
-    var text = input.value.trim();
-    if(!text){ showToast("Nothing to download", "error"); return; }
-    var parsed = parseJSON(text);
-    if(!parsed.ok){ showError(parsed); showToast("Fix JSON errors before downloading", "error"); return; }
-    var safeData = redactPII(parsed.value);
-    var content, mime, ext;
-    try{
-      switch(format){
-        case "json":
-          content = JSON.stringify(safeData, null, getIndentArg());
-          mime = "application/json"; ext = "json"; break;
-        case "xml":
-          content = toXml(safeData);
-          mime = "application/xml"; ext = "xml"; break;
-        case "yaml":
-          content = toYaml(safeData);
-          mime = "text/yaml"; ext = "yaml"; break;
-        case "csv":
-          content = toCsv(safeData, ",");
-          mime = "text/csv"; ext = "csv"; break;
-        case "tsv":
-          content = toCsv(safeData, "\t");
-          mime = "text/tab-separated-values"; ext = "tsv"; break;
-        default: return;
-      }
-    }catch(err){ showToast("Export failed: " + err.message, "error"); return; }
-    var blob = new Blob([content], {type: mime + ";charset=utf-8"});
-    var url = URL.createObjectURL(blob);
-    var a = document.createElement("a");
-    a.href = url; a.download = "data." + ext;
-    document.body.appendChild(a); a.click();
-    document.body.removeChild(a);
-    setTimeout(function(){ URL.revokeObjectURL(url); }, 1000);
-    showToast("Downloaded data." + ext, "success");
-  }
-
-  /* ═══════════ UPLOAD ═══════════ */
-  var uploadModal = document.getElementById("uploadModal");
-  var uploadZone  = document.getElementById("uploadZone");
-  var fileInput   = document.getElementById("fileInput");
-
-  function openUploadModal(){
-    uploadModal.classList.add("open");
-    fileInput.value = "";
-  }
-  function closeUploadModal(){ uploadModal.classList.remove("open"); }
-
-  document.getElementById("btnUpload").addEventListener("click", openUploadModal);
-  document.getElementById("btnCloseModal").addEventListener("click", closeUploadModal);
-  uploadModal.addEventListener("click", function(e){ if(e.target === uploadModal) closeUploadModal(); });
-  document.addEventListener("keydown", function(e){ if(e.key==="Escape") closeUploadModal(); });
-
-  uploadZone.addEventListener("click", function(){ fileInput.click(); });
-  uploadZone.addEventListener("dragover", function(e){ e.preventDefault(); uploadZone.classList.add("drag-over"); });
-  uploadZone.addEventListener("dragleave", function(){ uploadZone.classList.remove("drag-over"); });
-  uploadZone.addEventListener("drop", function(e){
-    e.preventDefault(); uploadZone.classList.remove("drag-over");
-    if(e.dataTransfer.files.length) loadFile(e.dataTransfer.files[0]);
-  });
-  fileInput.addEventListener("change", function(){ if(fileInput.files.length) loadFile(fileInput.files[0]); });
-
-  function loadFile(file){
-    if(file.size > 10 * 1024 * 1024){
-      showToast("File too large (max 10 MB)", "error"); return;
-    }
-    var reader = new FileReader();
-    reader.onload = function(){
-      input.value = reader.result;
-      updateLineNumbers(); updateInputStats();
-      closeUploadModal();
-      showToast("Loaded " + file.name + " (" + (file.size/1024).toFixed(1) + " KB)", "success");
-    };
-    reader.onerror = function(){ showToast("Failed to read file", "error"); };
-    reader.readAsText(file);
-  }
-
-  /* ═══════════ Drag & drop on input panel ═══════════ */
-  var dragCounter = 0;
-  inputWrap.addEventListener("dragenter", function(e){
-    e.preventDefault(); dragCounter++;
-    dropOverlay.classList.add("active");
-  });
-  inputWrap.addEventListener("dragleave", function(e){
-    e.preventDefault(); dragCounter--;
-    if(dragCounter <= 0){ dragCounter=0; dropOverlay.classList.remove("active"); }
-  });
-  inputWrap.addEventListener("dragover", function(e){ e.preventDefault(); });
-  inputWrap.addEventListener("drop", function(e){
-    e.preventDefault(); dragCounter=0; dropOverlay.classList.remove("active");
-    if(e.dataTransfer.files.length) loadFile(e.dataTransfer.files[0]);
-  });
-
-  /* ═══════════ COPY ═══════════ */
-  function doCopy(){
-    if(!lastOutputText){ showToast("Nothing to copy", "error"); return; }
-    if(navigator.clipboard && navigator.clipboard.writeText){
-      navigator.clipboard.writeText(lastOutputText).then(
-        function(){ showToast("Copied to clipboard!", "success"); },
-        function(){ fallbackCopy(); }
-      );
-    } else fallbackCopy();
-  }
-  function fallbackCopy(){
-    try{
-      var ta = document.createElement("textarea");
-      ta.value = lastOutputText; ta.style.cssText="position:fixed;left:-9999px";
-      document.body.appendChild(ta); ta.select(); document.execCommand("copy");
-      document.body.removeChild(ta); showToast("Copied to clipboard!", "success");
-    }catch(e){ showToast("Copy failed", "error"); }
-  }
-
-  /* ═══════════ CLEAR ═══════════ */
-  function doClear(){
-    input.value = ""; lastOutputText = ""; parsedData = null;
-    showPlaceholder("Paste JSON in the input panel and click Format.");
-    outputStats.textContent = ""; outputFmt.textContent = "";
-    updateLineNumbers(); updateInputStats(); input.focus();
-  }
-
-  /* ═══════════ TOGGLE ALL ═══════════ */
-  function doToggleAll(){
-    var colls = output.querySelectorAll(".coll");
-    if(!colls.length) return;
-    allCollapsed = !allCollapsed;
-    for(var i=0;i<colls.length;i++){
-      var tog = colls[i].querySelector(".coll-toggle");
-      if(allCollapsed){
-        colls[i].classList.add("collapsed");
-        if(tog){ tog.textContent="\u25B6"; tog.setAttribute("aria-expanded","false"); }
+/* ─── Group ops into visible chunks ─── */
+/* Returns [{start, end}] index ranges into ops array */
+function groupChunks(ops, ctx){
+  var n=ops.length, chunks=[], i=0;
+  while(i<n){
+    if(ops[i].t!=='='){
+      var end=i;
+      while(end<n&&ops[end].t!=='=') end++;
+      var s=Math.max(0,i-ctx);
+      var e=Math.min(n,end+ctx);
+      if(chunks.length && s<=chunks[chunks.length-1].end){
+        chunks[chunks.length-1].end=Math.max(chunks[chunks.length-1].end,e);
       } else {
-        colls[i].classList.remove("collapsed");
-        if(tog){ tog.textContent="\u25BC"; tog.setAttribute("aria-expanded","true"); }
+        chunks.push({start:s,end:e});
+      }
+      i=end;
+    } else {
+      i++;
+    }
+  }
+  return chunks;
+}
+
+/* ─── Render one segment of ops into HTML lines ─── */
+/* mode: "unified" | "split" */
+function renderSegment(segOps, aLines, bLines, mode){
+  var html='', i=0, len=segOps.length;
+  function unLine(cls, ln, sign, textHtml){
+    return '<div class="dl '+cls+'"><span class="dl-ln">'+ln+'</span><span class="dl-sign">'+sign+'</span><span class="dl-text">'+textHtml+'</span></div>';
+  }
+  function splitRow(leftHtml, rightHtml){
+    return '<div class="diff-split-row">'+leftHtml+rightHtml+'</div>';
+  }
+  function emptyHalf(){
+    return '<div class="diff-empty"></div>';
+  }
+  while(i<len){
+    var op=segOps[i];
+    if(op.t==='='){
+      var eText=esc(aLines[op.ai]);
+      if(mode==='split'){
+        var l=unLine('dl-ctx',op.ai+1,' ',eText);
+        var r=unLine('dl-ctx',op.bi+1,' ',eText);
+        html+=splitRow(l,r);
+      } else {
+        html+=unLine('dl-ctx',op.ai+1,' ',eText);
+      }
+      i++;
+    } else {
+      /* collect consecutive dels then ins */
+      var dels=[], ins2=[];
+      while(i<len&&segOps[i].t==='d') dels.push(segOps[i++]);
+      while(i<len&&segOps[i].t==='i') ins2.push(segOps[i++]);
+      var paired=Math.min(dels.length,ins2.length);
+      /* paired del+ins → char diff */
+      for(var p=0;p<paired;p++){
+        var cd=charDiff(aLines[dels[p].ai], bLines[ins2[p].bi]);
+        if(mode==='split'){
+          html+=splitRow(
+            unLine('dl-del',dels[p].ai+1,'-',cd.a),
+            unLine('dl-ins',ins2[p].bi+1,'+',cd.b)
+          );
+        } else {
+          html+=unLine('dl-del',dels[p].ai+1,'-',cd.a);
+          html+=unLine('dl-ins',ins2[p].bi+1,'+',cd.b);
+        }
+      }
+      /* unpaired dels */
+      for(var d2=paired;d2<dels.length;d2++){
+        var dText=esc(aLines[dels[d2].ai]);
+        if(mode==='split'){
+          html+=splitRow(unLine('dl-del',dels[d2].ai+1,'-',dText), emptyHalf());
+        } else {
+          html+=unLine('dl-del',dels[d2].ai+1,'-',dText);
+        }
+      }
+      /* unpaired ins */
+      for(var i3=paired;i3<ins2.length;i3++){
+        var iText=esc(bLines[ins2[i3].bi]);
+        if(mode==='split'){
+          html+=splitRow(emptyHalf(), unLine('dl-ins',ins2[i3].bi+1,'+',iText));
+        } else {
+          html+=unLine('dl-ins',ins2[i3].bi+1,'+',iText);
+        }
       }
     }
   }
+  return html;
+}
 
-  /* ═══════════ Toggle listeners ═══════════ */
-  function attachToggleListeners(){
-    var toggles = output.querySelectorAll(".coll-toggle");
-    for(var i=0;i<toggles.length;i++){
-      toggles[i].addEventListener("click", function(){
-        var coll = this.parentElement;
-        var collapsed = coll.classList.toggle("collapsed");
-        this.textContent = collapsed ? "\u25B6" : "\u25BC";
-        this.setAttribute("aria-expanded", String(!collapsed));
-      });
+/* ─── Build hunk header string ─── */
+function hunkHeader(ops, chunk){
+  var aStart=-1,bStart=-1,aC=0,bC=0;
+  for(var k=chunk.start;k<chunk.end;k++){
+    var op=ops[k];
+    if(op.t==='='||op.t==='d'){ if(aStart<0) aStart=op.ai; aC++; }
+    if(op.t==='='||op.t==='i'){ if(bStart<0) bStart=op.bi; bC++; }
+  }
+  return '@@ -'+(Math.max(0,aStart)+1)+','+(aC)+' +'+(Math.max(0,bStart)+1)+','+(bC)+' @@';
+}
+
+/* ─── Main diff render ─── */
+function renderDiff(aLines, bLines, ops, ctx, mode){
+  var hasChange = ops.some(function(o){return o.t!=='=';});
+  if(!hasChange){
+    return '<div style="color:var(--success);padding:20px 14px;font-family:var(--sans);font-size:13px;display:flex;align-items:center;gap:6px">'
+      +'<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm3.7 5.7-4 4a1 1 0 0 1-1.4 0l-2-2a1 1 0 1 1 1.4-1.4L7 8.58l3.3-3.3a1 1 0 0 1 1.4 1.42z"/></svg>'
+      +'Files are identical — no differences found.</div>';
+  }
+  var chunks=groupChunks(ops, parseInt(ctx,10)||3);
+  var html='';
+  if(mode==='split'){
+    html+='<div class="diff-split-hdr-row"><div class="diff-split-side-hdr">Original</div><div class="diff-split-side-hdr">Modified</div></div>';
+  }
+  chunks.forEach(function(chunk){
+    var hdr=hunkHeader(ops, chunk);
+    if(mode==='split'){
+      html+='<div class="diff-split-chunk-hdr">'+esc(hdr)+'</div>';
+    } else {
+      html+='<div class="dl-hdr">'+esc(hdr)+'</div>';
     }
-  }
-
-  /* ═══════════ SAMPLE ═══════════ */
-  function loadSample(){
-    input.value = JSON.stringify({
-      "company": "Acme Corp",
-      "founded": 2010,
-      "active": true,
-      "address": {
-        "street": "123 Innovation Drive",
-        "city": "San Francisco",
-        "state": "CA",
-        "zip": "94105"
-      },
-      "employees": [
-        {"id": 1, "name": "Alice Johnson", "role": "CEO", "skills": ["leadership", "strategy"]},
-        {"id": 2, "name": "Bob Smith", "role": "CTO", "skills": ["engineering", "architecture"]},
-        {"id": 3, "name": "Carol White", "role": "Designer", "skills": ["UI/UX", "prototyping"]}
-      ],
-      "metrics": {
-        "revenue": 5200000,
-        "customers": 1240,
-        "nps": 72,
-        "regions": ["NA", "EU", "APAC"]
-      },
-      "metadata": null
-    }, null, 2);
-    updateLineNumbers(); updateInputStats();
-    showToast("Sample JSON loaded", "info");
-  }
-
-  /* ═══════════ Placeholder ═══════════ */
-  function showPlaceholder(msg){
-    output.innerHTML = '<div style="color:var(--text3);padding:20px;text-align:center;line-height:1.8">'
-      + '<svg width="48" height="48" viewBox="0 0 16 16" fill="currentColor" style="opacity:.25;display:block;margin:0 auto 12px"><path d="M4 1.5A1.5 1.5 0 0 0 2.5 3v10A1.5 1.5 0 0 0 4 14.5h8a1.5 1.5 0 0 0 1.5-1.5V5.621a1.5 1.5 0 0 0-.44-1.06L10.44 1.94A1.5 1.5 0 0 0 9.378 1.5H4zM5 7h6v1.2H5V7zm0 2.5h4v1.2H5V9.5z"/></svg>'
-      + '<div style="font-size:13px;font-weight:500">' + msg + '</div>'
-      + '<div style="font-size:12px;margin-top:6px">Or drag &amp; drop a file \u2022 Click <strong>Upload</strong> to browse \u2022 Click <strong>+</strong> for sample data</div>'
-      + '</div>';
-  }
-
-  /* ═══════════ Convert menu items ═══════════ */
-  var convertItems = document.querySelectorAll("#convertMenu .dropdown-item");
-  for(var ci=0;ci<convertItems.length;ci++){
-    convertItems[ci].addEventListener("click", function(){
-      doConvert(this.getAttribute("data-format"));
-      closeAllDropdowns();
-    });
-  }
-
-  /* ═══════════ Download menu items ═══════════ */
-  var downloadItems = document.querySelectorAll("#downloadMenu .dropdown-item");
-  for(var di=0;di<downloadItems.length;di++){
-    downloadItems[di].addEventListener("click", function(){
-      doDownload(this.getAttribute("data-dl"));
-      closeAllDropdowns();
-    });
-  }
-
-  /* ═══════════ Button bindings ═══════════ */
-  document.getElementById("btnFormat").addEventListener("click", doFormat);
-  document.getElementById("btnMinify").addEventListener("click", doMinify);
-  document.getElementById("btnValidate").addEventListener("click", doValidate);
-  document.getElementById("btnCopy").addEventListener("click", doCopy);
-  document.getElementById("btnToggleAll").addEventListener("click", doToggleAll);
-  document.getElementById("btnClear").addEventListener("click", doClear);
-  document.getElementById("btnSample").addEventListener("click", loadSample);
-
-  /* ═══════════ Keyboard shortcut ═══════════ */
-  document.addEventListener("keydown", function(e){
-    if(e.key === "Enter" && (e.ctrlKey || e.metaKey)){
-      e.preventDefault(); doFormat();
-    }
+    html+=renderSegment(ops.slice(chunk.start,chunk.end), aLines, bLines, mode);
   });
+  return html;
+}
 
-  /* ═══════════ Init ═══════════ */
-  updateLineNumbers();
-  updateInputStats();
-  showPlaceholder("Paste JSON in the input panel and click Format.");
+/* ─── doDiff() ─── */
+function doDiff(){
+  var textA=diffInputA.value, textB=diffInputB.value;
+  if(!textA && !textB){
+    diffOut.innerHTML='<div class="diff-ph"><div style="font-size:13px;font-weight:600;color:var(--text2)">Paste text in both panels and click Compare</div></div>';
+    diffStatsEl.innerHTML='';
+    return;
+  }
+  /* optional JSON format */
+  if(diffFmtJson.checked){
+    try{ textA=JSON.stringify(JSON.parse(textA),null,2); }catch(e){}
+    try{ textB=JSON.stringify(JSON.parse(textB),null,2); }catch(e){}
+  }
+  var aLines=textA.split('\n'), bLines=textB.split('\n');
+  var ops=lcsLineDiff(aLines, bLines);
+  var adds=0, dels=0;
+  ops.forEach(function(op){ if(op.t==='i') adds++; if(op.t==='d') dels++; });
+  /* Stats */
+  var statsHtml='';
+  if(adds||dels){
+    if(adds) statsHtml+='<span class="diff-stat-add">+'+adds+'</span> ';
+    if(dels) statsHtml+='<span class="diff-stat-del">-'+dels+'</span>';
+  } else {
+    statsHtml='<span style="color:var(--success)">identical</span>';
+  }
+  diffStatsEl.innerHTML=statsHtml;
+  diffOut.innerHTML=renderDiff(aLines, bLines, ops, diffCtxSel.value, diffViewMode);
+}
+
+/* Diff view toggle */
+document.getElementById("btnDiffUnified").addEventListener("click", function(){
+  if(diffViewMode==='unified') return;
+  diffViewMode='unified';
+  this.classList.add('active'); this.setAttribute('aria-selected','true');
+  document.getElementById("btnDiffSplit").classList.remove('active');
+  document.getElementById("btnDiffSplit").setAttribute('aria-selected','false');
+  if(diffOut.querySelector('.dl-hdr,.diff-split-chunk-hdr')) doDiff();
+});
+document.getElementById("btnDiffSplit").addEventListener("click", function(){
+  if(diffViewMode==='split') return;
+  diffViewMode='split';
+  this.classList.add('active'); this.setAttribute('aria-selected','true');
+  document.getElementById("btnDiffUnified").classList.remove('active');
+  document.getElementById("btnDiffUnified").setAttribute('aria-selected','false');
+  if(diffOut.querySelector('.dl-hdr,.diff-split-chunk-hdr')) doDiff();
+});
+document.getElementById("btnCompare").addEventListener("click", doDiff);
+document.getElementById("btnSwap").addEventListener("click", function(){
+  var t=diffInputA.value;
+  diffInputA.value=diffInputB.value;
+  diffInputB.value=t;
+  updateDiffGutter(diffInputA,diffGutterA);
+  updateDiffGutter(diffInputB,diffGutterB);
+  toast("Swapped original &amp; modified","info");
+});
+document.getElementById("btnDiffSampleA").addEventListener("click", function(){
+  diffInputA.value=JSON.stringify({"name":"Alice","age":30,"role":"admin","city":"New York","active":true,"score":98.5},null,2);
+  updateDiffGutter(diffInputA,diffGutterA);
+});
+document.getElementById("btnDiffSampleB").addEventListener("click", function(){
+  diffInputB.value=JSON.stringify({"name":"Alice","age":31,"role":"editor","city":"San Francisco","active":false,"score":102.0,"department":"Engineering"},null,2);
+  updateDiffGutter(diffInputB,diffGutterB);
+});
+/* also trigger compare on Ctrl+Enter inside diff mode */
+diffInputA.addEventListener("keydown",function(e){
+  if((e.ctrlKey||e.metaKey)&&e.key==="Enter"){ e.preventDefault(); doDiff(); }
+});
+diffInputB.addEventListener("keydown",function(e){
+  if((e.ctrlKey||e.metaKey)&&e.key==="Enter"){ e.preventDefault(); doDiff(); }
+});
+
+/* ══════════════════════════════════════════
+   INIT
+══════════════════════════════════════════ */
+updateGutter();
+updateInStats();
+showOutContainer("main");
+showPlaceholder();
+
 })();
 </script>
 </body>
