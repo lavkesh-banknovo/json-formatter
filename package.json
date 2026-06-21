@@ -1,0 +1,12 @@
+{
+  "name": "json-formatter",
+  "version": "1.0.0",
+  "description": "A production-ready, self-contained JSON formatter and converter — 100% client-side, zero dependencies.",
+  "scripts": {
+    "dev": "npx --yes serve . -p 3000 --no-clipboard",
+    "start": "npx --yes serve . -p 3000 --no-clipboard",
+    "open": "open index.html"
+  },
+  "keywords": ["json", "formatter", "converter", "tool"],
+  "license": "MIT"
+}
